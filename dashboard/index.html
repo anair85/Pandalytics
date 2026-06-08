@@ -34,6 +34,49 @@
     font-size: 13px;
   }
 
+  /* ── LOADING SPINNER ── */
+  .loading-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .spinner {
+    border: 3px solid var(--surface);
+    border-top: 3px solid var(--green);
+    border-radius: 50%;
+    width: 40px;
+    height: 40px;
+    animation: spin 0.8s linear infinite;
+  }
+
+  @keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+  }
+
+  .loading-text {
+    color: var(--text-mid);
+    font-size: 14px;
+  }
+
+  .error-container {
+    background: rgba(248,113,113,0.1);
+    border: 1px solid rgba(248,113,113,0.3);
+    border-radius: 10px;
+    padding: 2rem;
+    color: #f87171;
+    max-width: 600px;
+    margin: 2rem auto;
+  }
+
+  .error-container h2 {
+    margin-bottom: 0.5rem;
+  }
+
   /* ── HEADER ── */
   .header {
     display: flex;
@@ -297,14 +340,23 @@
   .kpi-card:nth-child(5) { animation-delay: 0.25s; }
 
   .chart-card { animation: fadeUp 0.5s ease both; animation-delay: 0.3s; }
+
+  #dashboard { display: none; }
+  #dashboard.loaded { display: block; }
 </style>
 </head>
 <body>
 
+<div id="loading" class="loading-container">
+  <div class="spinner"></div>
+  <div class="loading-text">Loading your donation data...</div>
+</div>
+
+<div id="dashboard">
 <div class="header">
   <div class="header-left">
     <h1>Donation <span>Analytics</span></h1>
-    <p>Individual Giving · Poland · July 2018</p>
+    <p id="header-subtitle">Loading…</p>
   </div>
   <div class="header-right">
     <div class="badge">● LIVE DATA</div>
@@ -437,169 +489,60 @@
 </div>
 
 <div class="footer">
-  <span>Source: WWF Poland Salesforce · <span id="record-count"></span> transactions loaded</span>
+  <span>Source: <span id="data-source"></span> · <span id="record-count"></span> transactions loaded</span>
   <span>Retention = % of donors who gave 2+ times · Filters affect all metrics</span>
+</div>
 </div>
 
 <script>
 // ─────────────────────────────────────────────
-// RAW DATA
+// LOAD DATA FROM JSON FILE
 // ─────────────────────────────────────────────
 
-const RAW_DATA = [
-  {"Gift ID":"0060X00000Us6yp","Donor ID":50074375,"Close Date":"2018-07-01","Amount":30,"Stage":"Accepted","Type":"ONCE","Chanel":"Internet","Payment":"On-line transfer"},
-  {"Gift ID":"0060X00000Us64z","Donor ID":50087374,"Close Date":"2018-07-01","Amount":40,"Stage":"Accepted","Type":"ML","Chanel":"Direct Response TV","Payment":"Bank Card"},
-  {"Gift ID":"0060X00000Us650","Donor ID":50091777,"Close Date":"2018-07-01","Amount":10,"Stage":"Accepted","Type":"ML","Chanel":"Internet","Payment":"Bank Card"},
-  {"Gift ID":"0060X00000Us651","Donor ID":397656,"Close Date":"2018-07-01","Amount":40,"Stage":"Accepted","Type":"ML","Chanel":"Internet","Payment":"Bank Card"},
-  {"Gift ID":"0060X00000Us652","Donor ID":397656,"Close Date":"2018-07-01","Amount":40,"Stage":"Accepted","Type":"ML","Chanel":"Internet","Payment":"Bank Card"},
-  {"Gift ID":"0060X00000Us653","Donor ID":50049409,"Close Date":"2018-07-01","Amount":45,"Stage":"Accepted","Type":"ML","Chanel":"Internet","Payment":"Bank Card"},
-  {"Gift ID":"0060X00000Us654","Donor ID":50046186,"Close Date":"2018-07-01","Amount":50,"Stage":"Accepted","Type":"ML","Chanel":"Internet","Payment":"Bank Card"},
-  {"Gift ID":"0060X00000Us655","Donor ID":50043490,"Close Date":"2018-07-01","Amount":40,"Stage":"Accepted","Type":"ML","Chanel":"Internet","Payment":"Bank Card"},
-  {"Gift ID":"0060X00000Us656","Donor ID":50097068,"Close Date":"2018-07-01","Amount":40,"Stage":"Accepted","Type":"ML","Chanel":"Internet","Payment":"Bank Card"},
-  {"Gift ID":"0060X00000Us657","Donor ID":8169,"Close Date":"2018-07-01","Amount":30,"Stage":"Accepted","Type":"ML","Chanel":"Direct Response TV","Payment":"Bank Card"},
-  {"Gift ID":"0060X00000Us658","Donor ID":50090023,"Close Date":"2018-07-01","Amount":20,"Stage":"Accepted","Type":"ML","Chanel":"Internet","Payment":"Bank Card"},
-  {"Gift ID":"0060X00000Us659","Donor ID":50073700,"Close Date":"2018-07-01","Amount":120,"Stage":"Accepted","Type":"ONCE","Chanel":"Internet","Payment":"On-line transfer"},
-  {"Gift ID":"0060X00000Us65a","Donor ID":50073700,"Close Date":"2018-07-01","Amount":60,"Stage":"Accepted","Type":"ONCE","Chanel":"Internet","Payment":"On-line transfer"},
-  {"Gift ID":"0060X00000Us65b","Donor ID":50097175,"Close Date":"2018-07-01","Amount":100,"Stage":"Accepted","Type":"ONCE","Chanel":"Internet","Payment":"On-line transfer"},
-  {"Gift ID":"0060X00000Us65c","Donor ID":50097180,"Close Date":"2018-07-01","Amount":200,"Stage":"Accepted","Type":"ONCE","Chanel":"Internet","Payment":"On-line transfer"},
-  {"Gift ID":"0060X00000Us65d","Donor ID":50097186,"Close Date":"2018-07-01","Amount":100,"Stage":"Accepted","Type":"ONCE","Chanel":"Internet","Payment":"On-line transfer"},
-  {"Gift ID":"0060X00000Us65e","Donor ID":50097192,"Close Date":"2018-07-01","Amount":100,"Stage":"Accepted","Type":"ONCE","Chanel":"Internet","Payment":"On-line transfer"},
-  {"Gift ID":"0060X00000Us65f","Donor ID":50097196,"Close Date":"2018-07-01","Amount":100,"Stage":"Accepted","Type":"ONCE","Chanel":"Internet","Payment":"On-line transfer"},
-  {"Gift ID":"0060X00000Us65g","Donor ID":50097200,"Close Date":"2018-07-01","Amount":100,"Stage":"Accepted","Type":"ONCE","Chanel":"Internet","Payment":"On-line transfer"},
-  {"Gift ID":"0060X00000Us65h","Donor ID":50094882,"Close Date":"2018-07-01","Amount":100,"Stage":"Accepted","Type":"ONCE","Chanel":"Internet","Payment":"On-line transfer"},
-  {"Gift ID":"0060X00000Us65i","Donor ID":50097205,"Close Date":"2018-07-01","Amount":50,"Stage":"Canceled","Type":"ONCE","Chanel":"Internet","Payment":"On-line transfer"},
-  {"Gift ID":"0060X00000Us65j","Donor ID":50097210,"Close Date":"2018-07-01","Amount":30,"Stage":"Canceled","Type":"ONCE","Chanel":"Internet","Payment":"Bank Card"},
-  {"Gift ID":"0060X00000Us65k","Donor ID":50097215,"Close Date":"2018-07-01","Amount":40,"Stage":"Canceled","Type":"ML","Chanel":"Internet","Payment":"Bank Card"},
-  {"Gift ID":"0060X00000Us65l","Donor ID":50097220,"Close Date":"2018-07-01","Amount":25,"Stage":"Accepted","Type":"ONCE","Chanel":"Direct Mail","Payment":"Bank transfer"},
-  {"Gift ID":"0060X00000Us65m","Donor ID":50097225,"Close Date":"2018-07-01","Amount":30,"Stage":"Accepted","Type":"ONCE","Chanel":"Direct Mail","Payment":"Bank transfer"},
-  {"Gift ID":"0060X00000Us65n","Donor ID":50097230,"Close Date":"2018-07-01","Amount":50,"Stage":"Accepted","Type":"ONCE","Chanel":"Direct Mail","Payment":"Bank transfer"},
-  {"Gift ID":"0060X00000Us6b1","Donor ID":50001001,"Close Date":"2018-07-02","Amount":25,"Stage":"Accepted","Type":"ONCE","Chanel":"Direct Mail","Payment":"Bank transfer"},
-  {"Gift ID":"0060X00000Us6b2","Donor ID":50001002,"Close Date":"2018-07-02","Amount":50,"Stage":"Accepted","Type":"ONCE","Chanel":"Direct Mail","Payment":"Bank transfer"},
-  {"Gift ID":"0060X00000Us6b3","Donor ID":50001003,"Close Date":"2018-07-02","Amount":30,"Stage":"Accepted","Type":"ONCE","Chanel":"Direct Mail","Payment":"Bank transfer"},
-  {"Gift ID":"0060X00000Us6b4","Donor ID":50001004,"Close Date":"2018-07-02","Amount":100,"Stage":"Accepted","Type":"ONCE","Chanel":"Direct Mail","Payment":"Bank transfer"},
-  {"Gift ID":"0060X00000Us6b5","Donor ID":50001005,"Close Date":"2018-07-02","Amount":25,"Stage":"Accepted","Type":"ONCE","Chanel":"Direct Mail","Payment":"Bank transfer"},
-  {"Gift ID":"0060X00000Us6b6","Donor ID":50001006,"Close Date":"2018-07-02","Amount":50,"Stage":"Accepted","Type":"ONCE","Chanel":"Direct Mail","Payment":"Bank transfer"},
-  {"Gift ID":"0060X00000Us6b7","Donor ID":50001007,"Close Date":"2018-07-02","Amount":30,"Stage":"Accepted","Type":"ONCE","Chanel":"Direct Mail","Payment":"Bank transfer"},
-  {"Gift ID":"0060X00000Us6b8","Donor ID":50001008,"Close Date":"2018-07-02","Amount":75,"Stage":"Accepted","Type":"ONCE","Chanel":"Direct Mail","Payment":"Bank transfer"},
-  {"Gift ID":"0060X00000Us6b9","Donor ID":50001009,"Close Date":"2018-07-02","Amount":40,"Stage":"Accepted","Type":"ONCE","Chanel":"Direct Mail","Payment":"Bank transfer"},
-  {"Gift ID":"0060X00000Us6ba","Donor ID":50001010,"Close Date":"2018-07-02","Amount":200,"Stage":"Accepted","Type":"ONCE","Chanel":"Direct Mail","Payment":"Bank transfer"},
-  {"Gift ID":"0060X00000Us6bb","Donor ID":50001011,"Close Date":"2018-07-02","Amount":50,"Stage":"Accepted","Type":"ONCE","Chanel":"Direct Mail","Payment":"Bank transfer"},
-  {"Gift ID":"0060X00000Us6bc","Donor ID":50001012,"Close Date":"2018-07-02","Amount":25,"Stage":"Accepted","Type":"ONCE","Chanel":"Direct Mail","Payment":"Bank transfer"},
-  {"Gift ID":"0060X00000Us6bd","Donor ID":50001013,"Close Date":"2018-07-02","Amount":100,"Stage":"Accepted","Type":"ONCE","Chanel":"Direct Mail","Payment":"Bank transfer"},
-  {"Gift ID":"0060X00000Us6be","Donor ID":50001014,"Close Date":"2018-07-02","Amount":30,"Stage":"Accepted","Type":"ONCE","Chanel":"Direct Mail","Payment":"Bank transfer"},
-  {"Gift ID":"0060X00000Us6bf","Donor ID":50001015,"Close Date":"2018-07-02","Amount":50,"Stage":"Accepted","Type":"ONCE","Chanel":"Direct Mail","Payment":"Bank transfer"},
-  {"Gift ID":"0060X00000Us6c0","Donor ID":50002001,"Close Date":"2018-07-02","Amount":40,"Stage":"Accepted","Type":"ML","Chanel":"Internet","Payment":"Bank Card"},
-  {"Gift ID":"0060X00000Us6c1","Donor ID":50002002,"Close Date":"2018-07-02","Amount":40,"Stage":"Accepted","Type":"ML","Chanel":"Internet","Payment":"Bank Card"},
-  {"Gift ID":"0060X00000Us6c2","Donor ID":50002003,"Close Date":"2018-07-02","Amount":30,"Stage":"Accepted","Type":"ML","Chanel":"Internet","Payment":"Bank Card"},
-  {"Gift ID":"0060X00000Us6c3","Donor ID":50002004,"Close Date":"2018-07-02","Amount":50,"Stage":"Accepted","Type":"ML","Chanel":"Internet","Payment":"Bank Card"},
-  {"Gift ID":"0060X00000Us6c4","Donor ID":50002005,"Close Date":"2018-07-02","Amount":40,"Stage":"Accepted","Type":"ML","Chanel":"Internet","Payment":"Bank Card"},
-  {"Gift ID":"0060X00000Us6c5","Donor ID":50002006,"Close Date":"2018-07-02","Amount":40,"Stage":"Accepted","Type":"ML","Chanel":"Internet","Payment":"Bank Card"},
-  {"Gift ID":"0060X00000Us6c6","Donor ID":50002007,"Close Date":"2018-07-02","Amount":30,"Stage":"Accepted","Type":"ML","Chanel":"Direct Response TV","Payment":"Bank Card"},
-  {"Gift ID":"0060X00000Us6c7","Donor ID":50002008,"Close Date":"2018-07-02","Amount":30,"Stage":"Accepted","Type":"ML","Chanel":"Direct Response TV","Payment":"Bank Card"},
-  {"Gift ID":"0060X00000Us6c8","Donor ID":50002009,"Close Date":"2018-07-02","Amount":40,"Stage":"Accepted","Type":"ML","Chanel":"Direct Response TV","Payment":"Bank Card"},
-  {"Gift ID":"0060X00000Us6c9","Donor ID":50002010,"Close Date":"2018-07-02","Amount":40,"Stage":"Accepted","Type":"ML","Chanel":"Direct Response TV","Payment":"Bank Card"},
-  {"Gift ID":"0060X00000Us6ca","Donor ID":50002011,"Close Date":"2018-07-02","Amount":150,"Stage":"Accepted","Type":"ONCE","Chanel":"Internet","Payment":"On-line transfer"},
-  {"Gift ID":"0060X00000Us6cb","Donor ID":50002012,"Close Date":"2018-07-02","Amount":200,"Stage":"Accepted","Type":"ONCE","Chanel":"Internet","Payment":"On-line transfer"},
-  {"Gift ID":"0060X00000Us6cc","Donor ID":50002013,"Close Date":"2018-07-02","Amount":100,"Stage":"Accepted","Type":"ONCE","Chanel":"Internet","Payment":"On-line transfer"},
-  {"Gift ID":"0060X00000Us6cd","Donor ID":50002014,"Close Date":"2018-07-02","Amount":300,"Stage":"Accepted","Type":"ONCE","Chanel":"Internet","Payment":"On-line transfer"},
-  {"Gift ID":"0060X00000Us6ce","Donor ID":50002015,"Close Date":"2018-07-02","Amount":150,"Stage":"Accepted","Type":"ONCE","Chanel":"Internet","Payment":"On-line transfer"},
-  {"Gift ID":"0060X00000Us6cf","Donor ID":50002016,"Close Date":"2018-07-02","Amount":100,"Stage":"Accepted","Type":"ONCE","Chanel":"Internet","Payment":"On-line transfer"},
-  {"Gift ID":"0060X00000Us6d0","Donor ID":50002017,"Close Date":"2018-07-02","Amount":400,"Stage":"Accepted","Type":"ONCE","Chanel":"Internet","Payment":"On-line transfer"},
-  {"Gift ID":"0060X00000Us6d1","Donor ID":50002018,"Close Date":"2018-07-02","Amount":200,"Stage":"Accepted","Type":"ONCE","Chanel":"Internet","Payment":"On-line transfer"},
-  {"Gift ID":"0060X00000Us6d2","Donor ID":50002019,"Close Date":"2018-07-02","Amount":100,"Stage":"Accepted","Type":"ONCE","Chanel":"Internet","Payment":"On-line transfer"},
-  {"Gift ID":"0060X00000Us6d3","Donor ID":50002020,"Close Date":"2018-07-02","Amount":50,"Stage":"Canceled","Type":"ONCE","Chanel":"Internet","Payment":"Bank Card"},
-  {"Gift ID":"0060X00000Us6d4","Donor ID":50002021,"Close Date":"2018-07-02","Amount":40,"Stage":"Canceled","Type":"ML","Chanel":"Internet","Payment":"Bank Card"},
-  {"Gift ID":"0060X00000Us6d5","Donor ID":50002022,"Close Date":"2018-07-02","Amount":30,"Stage":"Canceled","Type":"ONCE","Chanel":"Direct Mail","Payment":"Bank transfer"},
-  {"Gift ID":"0060X00000Us6e0","Donor ID":50003001,"Close Date":"2018-07-03","Amount":50,"Stage":"Accepted","Type":"ONCE","Chanel":"Direct Mail","Payment":"Bank transfer"},
-  {"Gift ID":"0060X00000Us6e1","Donor ID":50003002,"Close Date":"2018-07-03","Amount":30,"Stage":"Accepted","Type":"ONCE","Chanel":"Direct Mail","Payment":"Bank transfer"},
-  {"Gift ID":"0060X00000Us6e2","Donor ID":50003003,"Close Date":"2018-07-03","Amount":100,"Stage":"Accepted","Type":"ONCE","Chanel":"Direct Mail","Payment":"Bank transfer"},
-  {"Gift ID":"0060X00000Us6e3","Donor ID":50003004,"Close Date":"2018-07-03","Amount":25,"Stage":"Accepted","Type":"ONCE","Chanel":"Direct Mail","Payment":"Bank transfer"},
-  {"Gift ID":"0060X00000Us6e4","Donor ID":50003005,"Close Date":"2018-07-03","Amount":50,"Stage":"Accepted","Type":"ONCE","Chanel":"Direct Mail","Payment":"Bank transfer"},
-  {"Gift ID":"0060X00000Us6e5","Donor ID":50003006,"Close Date":"2018-07-03","Amount":40,"Stage":"Accepted","Type":"ML","Chanel":"Internet","Payment":"Bank Card"},
-  {"Gift ID":"0060X00000Us6e6","Donor ID":50003007,"Close Date":"2018-07-03","Amount":40,"Stage":"Accepted","Type":"ML","Chanel":"Internet","Payment":"Bank Card"},
-  {"Gift ID":"0060X00000Us6e7","Donor ID":50003008,"Close Date":"2018-07-03","Amount":30,"Stage":"Accepted","Type":"ML","Chanel":"Internet","Payment":"Bank Card"},
-  {"Gift ID":"0060X00000Us6e8","Donor ID":50003009,"Close Date":"2018-07-03","Amount":50,"Stage":"Accepted","Type":"ML","Chanel":"Internet","Payment":"Bank Card"},
-  {"Gift ID":"0060X00000Us6e9","Donor ID":50003010,"Close Date":"2018-07-03","Amount":40,"Stage":"Accepted","Type":"ML","Chanel":"Internet","Payment":"Bank Card"},
-  {"Gift ID":"0060X00000Us6ea","Donor ID":50003011,"Close Date":"2018-07-03","Amount":30,"Stage":"Accepted","Type":"ML","Chanel":"Direct Response TV","Payment":"Bank Card"},
-  {"Gift ID":"0060X00000Us6eb","Donor ID":50003012,"Close Date":"2018-07-03","Amount":40,"Stage":"Accepted","Type":"ML","Chanel":"Direct Response TV","Payment":"Bank Card"},
-  {"Gift ID":"0060X00000Us6ec","Donor ID":50003013,"Close Date":"2018-07-03","Amount":100,"Stage":"Accepted","Type":"ONCE","Chanel":"Internet","Payment":"On-line transfer"},
-  {"Gift ID":"0060X00000Us6ed","Donor ID":50003014,"Close Date":"2018-07-03","Amount":200,"Stage":"Accepted","Type":"ONCE","Chanel":"Internet","Payment":"On-line transfer"},
-  {"Gift ID":"0060X00000Us6ee","Donor ID":50003015,"Close Date":"2018-07-03","Amount":50,"Stage":"Canceled","Type":"ONCE","Chanel":"Internet","Payment":"Bank Card"},
-  {"Gift ID":"0060X00000Us6f0","Donor ID":50004001,"Close Date":"2018-07-04","Amount":50,"Stage":"Accepted","Type":"ONCE","Chanel":"Direct Mail","Payment":"Bank transfer"},
-  {"Gift ID":"0060X00000Us6f1","Donor ID":50004002,"Close Date":"2018-07-04","Amount":30,"Stage":"Accepted","Type":"ONCE","Chanel":"Direct Mail","Payment":"Bank transfer"},
-  {"Gift ID":"0060X00000Us6f2","Donor ID":50004003,"Close Date":"2018-07-04","Amount":100,"Stage":"Accepted","Type":"ONCE","Chanel":"Direct Mail","Payment":"Bank transfer"},
-  {"Gift ID":"0060X00000Us6f3","Donor ID":50004004,"Close Date":"2018-07-04","Amount":25,"Stage":"Accepted","Type":"ONCE","Chanel":"Direct Mail","Payment":"Bank transfer"},
-  {"Gift ID":"0060X00000Us6f4","Donor ID":50004005,"Close Date":"2018-07-04","Amount":50,"Stage":"Accepted","Type":"ONCE","Chanel":"Direct Mail","Payment":"Bank transfer"},
-  {"Gift ID":"0060X00000Us6f5","Donor ID":50004006,"Close Date":"2018-07-04","Amount":40,"Stage":"Accepted","Type":"ML","Chanel":"Internet","Payment":"Bank Card"},
-  {"Gift ID":"0060X00000Us6f6","Donor ID":50004007,"Close Date":"2018-07-04","Amount":40,"Stage":"Accepted","Type":"ML","Chanel":"Internet","Payment":"Bank Card"},
-  {"Gift ID":"0060X00000Us6f7","Donor ID":50004008,"Close Date":"2018-07-04","Amount":30,"Stage":"Accepted","Type":"ML","Chanel":"Internet","Payment":"Bank Card"},
-  {"Gift ID":"0060X00000Us6f8","Donor ID":50004009,"Close Date":"2018-07-04","Amount":50,"Stage":"Accepted","Type":"ML","Chanel":"Internet","Payment":"Bank Card"},
-  {"Gift ID":"0060X00000Us6f9","Donor ID":50004010,"Close Date":"2018-07-04","Amount":40,"Stage":"Accepted","Type":"ML","Chanel":"Internet","Payment":"Bank Card"},
-  {"Gift ID":"0060X00000Us6fa","Donor ID":50004011,"Close Date":"2018-07-04","Amount":30,"Stage":"Accepted","Type":"ML","Chanel":"Direct Response TV","Payment":"Bank Card"},
-  {"Gift ID":"0060X00000Us6fb","Donor ID":50004012,"Close Date":"2018-07-04","Amount":40,"Stage":"Accepted","Type":"ML","Chanel":"Direct Response TV","Payment":"Bank Card"},
-  {"Gift ID":"0060X00000Us6fc","Donor ID":50004013,"Close Date":"2018-07-04","Amount":100,"Stage":"Accepted","Type":"ONCE","Chanel":"Internet","Payment":"On-line transfer"},
-  {"Gift ID":"0060X00000Us6fd","Donor ID":50004014,"Close Date":"2018-07-04","Amount":200,"Stage":"Accepted","Type":"ONCE","Chanel":"Internet","Payment":"On-line transfer"},
-  {"Gift ID":"0060X00000Us6fe","Donor ID":50004015,"Close Date":"2018-07-04","Amount":50,"Stage":"Canceled","Type":"ONCE","Chanel":"Internet","Payment":"Bank Card"},
-  {"Gift ID":"0060X00000Us700","Donor ID":50005001,"Close Date":"2018-07-05","Amount":50,"Stage":"Accepted","Type":"ONCE","Chanel":"Direct Mail","Payment":"Bank transfer"},
-  {"Gift ID":"0060X00000Us701","Donor ID":50005002,"Close Date":"2018-07-05","Amount":30,"Stage":"Accepted","Type":"ONCE","Chanel":"Direct Mail","Payment":"Bank transfer"},
-  {"Gift ID":"0060X00000Us702","Donor ID":50005003,"Close Date":"2018-07-05","Amount":100,"Stage":"Accepted","Type":"ONCE","Chanel":"Direct Mail","Payment":"Bank transfer"},
-  {"Gift ID":"0060X00000Us703","Donor ID":50005004,"Close Date":"2018-07-05","Amount":25,"Stage":"Accepted","Type":"ONCE","Chanel":"Direct Mail","Payment":"Bank transfer"},
-  {"Gift ID":"0060X00000Us704","Donor ID":50005005,"Close Date":"2018-07-05","Amount":50,"Stage":"Accepted","Type":"ONCE","Chanel":"Direct Mail","Payment":"Bank transfer"},
-  {"Gift ID":"0060X00000Us705","Donor ID":50005006,"Close Date":"2018-07-05","Amount":40,"Stage":"Accepted","Type":"ML","Chanel":"Internet","Payment":"Bank Card"},
-  {"Gift ID":"0060X00000Us706","Donor ID":50005007,"Close Date":"2018-07-05","Amount":40,"Stage":"Accepted","Type":"ML","Chanel":"Internet","Payment":"Bank Card"},
-  {"Gift ID":"0060X00000Us707","Donor ID":50005008,"Close Date":"2018-07-05","Amount":30,"Stage":"Accepted","Type":"ML","Chanel":"Internet","Payment":"Bank Card"},
-  {"Gift ID":"0060X00000Us708","Donor ID":50005009,"Close Date":"2018-07-05","Amount":50,"Stage":"Accepted","Type":"ML","Chanel":"Internet","Payment":"Bank Card"},
-  {"Gift ID":"0060X00000Us709","Donor ID":50005010,"Close Date":"2018-07-05","Amount":40,"Stage":"Accepted","Type":"ML","Chanel":"Internet","Payment":"Bank Card"},
-  {"Gift ID":"0060X00000Us70a","Donor ID":50005011,"Close Date":"2018-07-05","Amount":150,"Stage":"Accepted","Type":"ONCE","Chanel":"Internet","Payment":"On-line transfer"},
-  {"Gift ID":"0060X00000Us70b","Donor ID":50005012,"Close Date":"2018-07-05","Amount":200,"Stage":"Accepted","Type":"ONCE","Chanel":"Internet","Payment":"On-line transfer"},
-  {"Gift ID":"0060X00000Us70c","Donor ID":50005013,"Close Date":"2018-07-05","Amount":100,"Stage":"Accepted","Type":"ONCE","Chanel":"Internet","Payment":"On-line transfer"},
-  {"Gift ID":"0060X00000Us70d","Donor ID":50005014,"Close Date":"2018-07-05","Amount":300,"Stage":"Accepted","Type":"ONCE","Chanel":"Internet","Payment":"On-line transfer"},
-  {"Gift ID":"0060X00000Us70e","Donor ID":50005015,"Close Date":"2018-07-05","Amount":50,"Stage":"Canceled","Type":"ONCE","Chanel":"Internet","Payment":"Bank Card"},
-  {"Gift ID":"0060X00000Us710","Donor ID":50006001,"Close Date":"2018-07-06","Amount":50,"Stage":"Accepted","Type":"ONCE","Chanel":"Direct Mail","Payment":"Bank transfer"},
-  {"Gift ID":"0060X00000Us711","Donor ID":50006002,"Close Date":"2018-07-06","Amount":30,"Stage":"Accepted","Type":"ONCE","Chanel":"Direct Mail","Payment":"Bank transfer"},
-  {"Gift ID":"0060X00000Us712","Donor ID":50006003,"Close Date":"2018-07-06","Amount":100,"Stage":"Accepted","Type":"ONCE","Chanel":"Direct Mail","Payment":"Bank transfer"},
-  {"Gift ID":"0060X00000Us713","Donor ID":50006004,"Close Date":"2018-07-06","Amount":25,"Stage":"Accepted","Type":"ONCE","Chanel":"Direct Mail","Payment":"Bank transfer"},
-  {"Gift ID":"0060X00000Us714","Donor ID":50006005,"Close Date":"2018-07-06","Amount":50,"Stage":"Accepted","Type":"ONCE","Chanel":"Direct Mail","Payment":"Bank transfer"},
-  {"Gift ID":"0060X00000Us715","Donor ID":50006006,"Close Date":"2018-07-06","Amount":40,"Stage":"Accepted","Type":"ML","Chanel":"Internet","Payment":"Bank Card"},
-  {"Gift ID":"0060X00000Us716","Donor ID":50006007,"Close Date":"2018-07-06","Amount":40,"Stage":"Accepted","Type":"ML","Chanel":"Internet","Payment":"Bank Card"},
-  {"Gift ID":"0060X00000Us717","Donor ID":50006008,"Close Date":"2018-07-06","Amount":30,"Stage":"Accepted","Type":"ML","Chanel":"Internet","Payment":"Bank Card"},
-  {"Gift ID":"0060X00000Us718","Donor ID":50006009,"Close Date":"2018-07-06","Amount":50,"Stage":"Accepted","Type":"ML","Chanel":"Internet","Payment":"Bank Card"},
-  {"Gift ID":"0060X00000Us719","Donor ID":50006010,"Close Date":"2018-07-06","Amount":40,"Stage":"Accepted","Type":"ML","Chanel":"Internet","Payment":"Bank Card"},
-  {"Gift ID":"0060X00000Us71a","Donor ID":50006011,"Close Date":"2018-07-06","Amount":30,"Stage":"Accepted","Type":"ML","Chanel":"Direct Response TV","Payment":"Bank Card"},
-  {"Gift ID":"0060X00000Us71b","Donor ID":50006012,"Close Date":"2018-07-06","Amount":40,"Stage":"Accepted","Type":"ML","Chanel":"Direct Response TV","Payment":"Bank Card"},
-  {"Gift ID":"0060X00000Us71c","Donor ID":50006013,"Close Date":"2018-07-06","Amount":100,"Stage":"Accepted","Type":"ONCE","Chanel":"Internet","Payment":"On-line transfer"},
-  {"Gift ID":"0060X00000Us71d","Donor ID":50006014,"Close Date":"2018-07-06","Amount":200,"Stage":"Accepted","Type":"ONCE","Chanel":"Internet","Payment":"On-line transfer"},
-  {"Gift ID":"0060X00000Us71e","Donor ID":50006015,"Close Date":"2018-07-06","Amount":50,"Stage":"Canceled","Type":"ONCE","Chanel":"Internet","Payment":"Bank Card"},
-  {"Gift ID":"0060X00000Us720","Donor ID":50007001,"Close Date":"2018-07-07","Amount":50,"Stage":"Accepted","Type":"ONCE","Chanel":"Direct Mail","Payment":"Bank transfer"},
-  {"Gift ID":"0060X00000Us721","Donor ID":50007002,"Close Date":"2018-07-07","Amount":30,"Stage":"Accepted","Type":"ONCE","Chanel":"Direct Mail","Payment":"Bank transfer"},
-  {"Gift ID":"0060X00000Us722","Donor ID":50007003,"Close Date":"2018-07-07","Amount":40,"Stage":"Accepted","Type":"ML","Chanel":"Internet","Payment":"Bank Card"},
-  {"Gift ID":"0060X00000Us723","Donor ID":50007004,"Close Date":"2018-07-07","Amount":40,"Stage":"Accepted","Type":"ML","Chanel":"Internet","Payment":"Bank Card"},
-  {"Gift ID":"0060X00000Us724","Donor ID":50007005,"Close Date":"2018-07-07","Amount":30,"Stage":"Accepted","Type":"ML","Chanel":"Internet","Payment":"Bank Card"},
-  {"Gift ID":"0060X00000Us725","Donor ID":50007006,"Close Date":"2018-07-07","Amount":50,"Stage":"Accepted","Type":"ML","Chanel":"Internet","Payment":"Bank Card"},
-  {"Gift ID":"0060X00000Us726","Donor ID":50007007,"Close Date":"2018-07-07","Amount":100,"Stage":"Accepted","Type":"ONCE","Chanel":"Internet","Payment":"On-line transfer"},
-  {"Gift ID":"0060X00000Us727","Donor ID":50007008,"Close Date":"2018-07-07","Amount":200,"Stage":"Accepted","Type":"ONCE","Chanel":"Internet","Payment":"On-line transfer"},
-  {"Gift ID":"0060X00000Us728","Donor ID":50007009,"Close Date":"2018-07-07","Amount":50,"Stage":"Canceled","Type":"ONCE","Chanel":"Internet","Payment":"Bank Card"},
-  {"Gift ID":"0060X00000Us730","Donor ID":50008001,"Close Date":"2018-07-08","Amount":50,"Stage":"Accepted","Type":"ONCE","Chanel":"Direct Mail","Payment":"Bank transfer"},
-  {"Gift ID":"0060X00000Us731","Donor ID":50008002,"Close Date":"2018-07-08","Amount":30,"Stage":"Accepted","Type":"ONCE","Chanel":"Direct Mail","Payment":"Bank transfer"},
-  {"Gift ID":"0060X00000Us732","Donor ID":50008003,"Close Date":"2018-07-08","Amount":40,"Stage":"Accepted","Type":"ML","Chanel":"Internet","Payment":"Bank Card"},
-  {"Gift ID":"0060X00000Us733","Donor ID":50008004,"Close Date":"2018-07-08","Amount":40,"Stage":"Accepted","Type":"ML","Chanel":"Internet","Payment":"Bank Card"},
-  {"Gift ID":"0060X00000Us734","Donor ID":50008005,"Close Date":"2018-07-08","Amount":30,"Stage":"Accepted","Type":"ML","Chanel":"Internet","Payment":"Bank Card"},
-  {"Gift ID":"0060X00000Us735","Donor ID":50008006,"Close Date":"2018-07-08","Amount":50,"Stage":"Accepted","Type":"ML","Chanel":"Internet","Payment":"Bank Card"},
-  {"Gift ID":"0060X00000Us736","Donor ID":50008007,"Close Date":"2018-07-08","Amount":100,"Stage":"Accepted","Type":"ONCE","Chanel":"Internet","Payment":"On-line transfer"},
-  {"Gift ID":"0060X00000Us737","Donor ID":50008008,"Close Date":"2018-07-08","Amount":200,"Stage":"Accepted","Type":"ONCE","Chanel":"Internet","Payment":"On-line transfer"},
-  {"Gift ID":"0060X00000Us738","Donor ID":50008009,"Close Date":"2018-07-08","Amount":50,"Stage":"Canceled","Type":"ONCE","Chanel":"Internet","Payment":"Bank Card"},
-  {"Gift ID":"0060X00000Us740","Donor ID":50009001,"Close Date":"2018-07-09","Amount":200,"Stage":"Accepted","Type":"ONCE","Chanel":"Internet","Payment":"On-line transfer"},
-  {"Gift ID":"0060X00000Us741","Donor ID":50009002,"Close Date":"2018-07-09","Amount":300,"Stage":"Accepted","Type":"ONCE","Chanel":"Internet","Payment":"On-line transfer"},
-  {"Gift ID":"0060X00000Us742","Donor ID":50009003,"Close Date":"2018-07-09","Amount":150,"Stage":"Accepted","Type":"ONCE","Chanel":"Internet","Payment":"On-line transfer"},
-  {"Gift ID":"0060X00000Us743","Donor ID":50009004,"Close Date":"2018-07-09","Amount":400,"Stage":"Accepted","Type":"ONCE","Chanel":"Internet","Payment":"On-line transfer"},
-  {"Gift ID":"0060X00000Us744","Donor ID":50009005,"Close Date":"2018-07-09","Amount":200,"Stage":"Accepted","Type":"ONCE","Chanel":"Internet","Payment":"On-line transfer"},
-  {"Gift ID":"0060X00000Us745","Donor ID":50009006,"Close Date":"2018-07-09","Amount":100,"Stage":"Accepted","Type":"ONCE","Chanel":"Internet","Payment":"On-line transfer"},
-  {"Gift ID":"0060X00000Us746","Donor ID":50009007,"Close Date":"2018-07-09","Amount":250,"Stage":"Accepted","Type":"ONCE","Chanel":"Internet","Payment":"On-line transfer"},
-  {"Gift ID":"0060X00000Us747","Donor ID":50009008,"Close Date":"2018-07-09","Amount":50,"Stage":"Accepted","Type":"ONCE","Chanel":"Direct Mail","Payment":"Bank transfer"},
-  {"Gift ID":"0060X00000Us748","Donor ID":50009009,"Close Date":"2018-07-09","Amount":75,"Stage":"Accepted","Type":"ONCE","Chanel":"Direct Mail","Payment":"Bank transfer"},
-  {"Gift ID":"0060X00000Us749","Donor ID":50009010,"Close Date":"2018-07-09","Amount":100,"Stage":"Accepted","Type":"ONCE","Chanel":"Direct Mail","Payment":"Bank transfer"},
-  {"Gift ID":"0060X00000Us74a","Donor ID":50009011,"Close Date":"2018-07-09","Amount":50,"Stage":"Canceled","Type":"ONCE","Chanel":"Internet","Payment":"Bank Card"}
-];
+let RAW_DATA = [];
+
+async function loadData() {
+  try {
+    const filename = '241017 transaction-file - test.json';
+    const url = `https://raw.githubusercontent.com/anair85/Pandalytics/main/dashboard/${encodeURIComponent(filename)}`;
+    
+    const response = await fetch(url);
+    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+    
+    RAW_DATA = await response.json();
+    
+    if (!Array.isArray(RAW_DATA)) {
+      throw new Error('Data is not an array');
+    }
+    
+    console.log(`✓ Loaded ${RAW_DATA.length} records`);
+    
+    document.getElementById('loading').style.display = 'none';
+    document.getElementById('dashboard').classList.add('loaded');
+    document.getElementById('data-source').textContent = filename;
+    
+    // Update subtitle with date range
+    const dates = RAW_DATA
+      .map(r => new Date(r['Close Date']).getTime())
+      .filter(d => !isNaN(d));
+    if (dates.length > 0) {
+      const minDate = new Date(Math.min(...dates)).toLocaleDateString();
+      const maxDate = new Date(Math.max(...dates)).toLocaleDateString();
+      document.getElementById('header-subtitle').textContent = `${minDate} — ${maxDate}`;
+    }
+    
+    renderAll();
+  } catch (error) {
+    console.error('Error loading data:', error);
+    document.getElementById('loading').innerHTML = `
+      <div class="error-container">
+        <h2>⚠ Error Loading Data</h2>
+        <p>${error.message}</p>
+        <p style="margin-top: 1rem; font-size: 12px;">Check browser console for details.</p>
+      </div>
+    `;
+  }
+}
 
 // ─────────────────────────────────────────────
 // STATE
@@ -802,8 +745,8 @@ function renderAll() {
   renderTable(data);
   renderCohort(donorStats);
 
-  document.getElementById('record-count').textContent = RAW_DATA.length;
-  document.getElementById('table-count').textContent = `(${data.length} shown)`;
+  document.getElementById('record-count').textContent = RAW_DATA.length.toLocaleString();
+  document.getElementById('table-count').textContent = `(${data.length.toLocaleString()} shown)`;
 }
 
 function updateBar(id, labels, datasets, scales, showLegend = false) {
@@ -962,7 +905,7 @@ document.querySelectorAll('[data-stage]').forEach(btn => {
 // ─────────────────────────────────────────────
 // INIT
 // ─────────────────────────────────────────────
-renderAll();
+loadData();
 </script>
 </body>
 </html>
