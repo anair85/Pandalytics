@@ -1,0 +1,844 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Donation Analytics Dashboard</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Fraunces:opsz,wght@9..144,300;9..144,600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0d1117;
+    --surface: #161b22;
+    --surface2: #1c2330;
+    --border: #30363d;
+    --green: #39d353;
+    --green-dim: #1a4731;
+    --teal: #58d7c7;
+    --amber: #f0b429;
+    --rose: #f87171;
+    --text: #e6edf3;
+    --text-dim: #7d8590;
+    --text-mid: #adbac7;
+    --accent: #39d353;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'DM Mono', monospace;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    padding: 2rem;
+    font-size: 13px;
+  }
+
+  /* ── HEADER ── */
+  .header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    margin-bottom: 2.5rem;
+    padding-bottom: 1.5rem;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .header-left h1 {
+    font-family: 'Fraunces', serif;
+    font-weight: 600;
+    font-size: 2rem;
+    letter-spacing: -0.02em;
+    color: var(--text);
+    line-height: 1.1;
+  }
+
+  .header-left h1 span { color: var(--green); }
+
+  .header-left p {
+    color: var(--text-dim);
+    margin-top: 0.4rem;
+    font-size: 12px;
+  }
+
+  .header-right {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+  }
+
+  .badge {
+    background: var(--green-dim);
+    color: var(--green);
+    border: 1px solid var(--green);
+    padding: 0.25rem 0.75rem;
+    border-radius: 999px;
+    font-size: 11px;
+    letter-spacing: 0.05em;
+    font-weight: 500;
+  }
+
+  /* ── FILTERS ── */
+  .filter-bar {
+    display: flex;
+    gap: 0.75rem;
+    margin-bottom: 2rem;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+
+  .filter-label {
+    color: var(--text-dim);
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin-right: 0.25rem;
+  }
+
+  .filter-btn {
+    background: var(--surface);
+    color: var(--text-mid);
+    border: 1px solid var(--border);
+    padding: 0.35rem 1rem;
+    border-radius: 6px;
+    cursor: pointer;
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+    transition: all 0.15s;
+  }
+
+  .filter-btn:hover { border-color: var(--green); color: var(--text); }
+  .filter-btn.active { background: var(--green-dim); border-color: var(--green); color: var(--green); }
+
+  /* ── KPI CARDS ── */
+  .kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1rem;
+    margin-bottom: 2rem;
+  }
+
+  @media (max-width: 900px) { .kpi-grid { grid-template-columns: repeat(2, 1fr); } }
+  @media (max-width: 500px) { .kpi-grid { grid-template-columns: 1fr; } }
+
+  .kpi-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 1.25rem;
+    position: relative;
+    overflow: hidden;
+    transition: border-color 0.2s;
+  }
+
+  .kpi-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+  }
+
+  .kpi-card.green::before  { background: var(--green); }
+  .kpi-card.teal::before   { background: var(--teal); }
+  .kpi-card.amber::before  { background: var(--amber); }
+  .kpi-card.rose::before   { background: var(--rose); }
+
+  .kpi-card:hover { border-color: var(--text-dim); }
+
+  .kpi-label {
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    margin-bottom: 0.6rem;
+  }
+
+  .kpi-value {
+    font-family: 'Fraunces', serif;
+    font-size: 2rem;
+    font-weight: 600;
+    line-height: 1;
+    margin-bottom: 0.4rem;
+  }
+
+  .kpi-card.green  .kpi-value { color: var(--green); }
+  .kpi-card.teal   .kpi-value { color: var(--teal); }
+  .kpi-card.amber  .kpi-value { color: var(--amber); }
+  .kpi-card.rose   .kpi-value { color: var(--rose); }
+
+  .kpi-sub {
+    font-size: 11px;
+    color: var(--text-dim);
+  }
+
+  /* ── CHARTS GRID ── */
+  .charts-grid {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: 1rem;
+    margin-bottom: 1rem;
+  }
+
+  .charts-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+    margin-bottom: 1rem;
+  }
+
+  @media (max-width: 900px) {
+    .charts-grid, .charts-row { grid-template-columns: 1fr; }
+  }
+
+  .chart-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 1.25rem;
+  }
+
+  .chart-title {
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    margin-bottom: 1rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .chart-title span { color: var(--text-mid); font-size: 10px; }
+
+  .chart-wrap {
+    position: relative;
+  }
+
+  /* ── TABLE ── */
+  .table-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 1.25rem;
+    margin-bottom: 1rem;
+    overflow-x: auto;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+
+  th {
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    text-align: left;
+    padding: 0.5rem 0.75rem;
+    border-bottom: 1px solid var(--border);
+  }
+
+  td {
+    padding: 0.6rem 0.75rem;
+    border-bottom: 1px solid var(--surface2);
+    color: var(--text-mid);
+    font-size: 12px;
+  }
+
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: var(--surface2); }
+
+  .td-income { color: var(--green); font-weight: 500; }
+  .td-date { color: var(--text-dim); }
+
+  .pill {
+    display: inline-block;
+    padding: 0.15rem 0.6rem;
+    border-radius: 999px;
+    font-size: 10px;
+    font-weight: 500;
+  }
+
+  .pill-ml  { background: rgba(88,215,199,0.15); color: var(--teal); }
+  .pill-once { background: rgba(240,180,41,0.15); color: var(--amber); }
+  .pill-accepted { background: rgba(57,211,83,0.15); color: var(--green); }
+  .pill-canceled { background: rgba(248,113,113,0.15); color: var(--rose); }
+
+  /* ── FOOTER ── */
+  .footer {
+    margin-top: 2rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--border);
+    color: var(--text-dim);
+    font-size: 11px;
+    display: flex;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  /* ── Stagger animation ── */
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(12px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  .kpi-card { animation: fadeUp 0.4s ease both; }
+  .kpi-card:nth-child(1) { animation-delay: 0.05s; }
+  .kpi-card:nth-child(2) { animation-delay: 0.1s; }
+  .kpi-card:nth-child(3) { animation-delay: 0.15s; }
+  .kpi-card:nth-child(4) { animation-delay: 0.2s; }
+
+  .chart-card { animation: fadeUp 0.5s ease both; animation-delay: 0.25s; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-left">
+    <h1>Donation <span>Analytics</span></h1>
+    <p>Individual Giving · Poland · July 2018</p>
+  </div>
+  <div class="header-right">
+    <div class="badge">● LIVE DATA</div>
+  </div>
+</div>
+
+<!-- FILTERS -->
+<div class="filter-bar">
+  <span class="filter-label">Type:</span>
+  <button class="filter-btn active" data-filter="all">All</button>
+  <button class="filter-btn" data-filter="ML">Regular (ML)</button>
+  <button class="filter-btn" data-filter="ONCE">One-off</button>
+  <span class="filter-label" style="margin-left:1rem">Status:</span>
+  <button class="filter-btn active" data-stage="all">All</button>
+  <button class="filter-btn" data-stage="Accepted">Accepted</button>
+  <button class="filter-btn" data-stage="Canceled">Canceled</button>
+</div>
+
+<!-- KPI CARDS -->
+<div class="kpi-grid">
+  <div class="kpi-card green">
+    <div class="kpi-label">Total Income</div>
+    <div class="kpi-value" id="kpi-income">PLN 0</div>
+    <div class="kpi-sub" id="kpi-income-sub">Loading…</div>
+  </div>
+  <div class="kpi-card teal">
+    <div class="kpi-label">Unique Donors</div>
+    <div class="kpi-value" id="kpi-donors">0</div>
+    <div class="kpi-sub" id="kpi-donors-sub">Loading…</div>
+  </div>
+  <div class="kpi-card amber">
+    <div class="kpi-label">Total Donations</div>
+    <div class="kpi-value" id="kpi-donations">0</div>
+    <div class="kpi-sub" id="kpi-donations-sub">Loading…</div>
+  </div>
+  <div class="kpi-card rose">
+    <div class="kpi-label">Regular Donations</div>
+    <div class="kpi-value" id="kpi-regular">0</div>
+    <div class="kpi-sub" id="kpi-regular-sub">Loading…</div>
+  </div>
+</div>
+
+<!-- CHARTS ROW 1: Income over time + Type split -->
+<div class="charts-grid">
+  <div class="chart-card">
+    <div class="chart-title">Daily Income <span id="income-chart-label">All types · Accepted only</span></div>
+    <div class="chart-wrap"><canvas id="incomeChart" height="140"></canvas></div>
+  </div>
+  <div class="chart-card">
+    <div class="chart-title">Donation Type Split</div>
+    <div class="chart-wrap"><canvas id="typeChart" height="140"></canvas></div>
+  </div>
+</div>
+
+<!-- CHARTS ROW 2: Donors + Channel -->
+<div class="charts-row">
+  <div class="chart-card">
+    <div class="chart-title">Daily Donors & Donations</div>
+    <div class="chart-wrap"><canvas id="donorsChart" height="160"></canvas></div>
+  </div>
+  <div class="chart-card">
+    <div class="chart-title">Income by Channel</div>
+    <div class="chart-wrap"><canvas id="channelChart" height="160"></canvas></div>
+  </div>
+</div>
+
+<!-- CHARTS ROW 3: Payment + Regular donations trend -->
+<div class="charts-row">
+  <div class="chart-card">
+    <div class="chart-title">Payment Method</div>
+    <div class="chart-wrap"><canvas id="paymentChart" height="160"></canvas></div>
+  </div>
+  <div class="chart-card">
+    <div class="chart-title">Daily Regular vs One-off</div>
+    <div class="chart-wrap"><canvas id="regularChart" height="160"></canvas></div>
+  </div>
+</div>
+
+<!-- TRANSACTIONS TABLE -->
+<div class="table-card">
+  <div class="chart-title">Transactions <span id="table-count"></span></div>
+  <table id="txTable">
+    <thead>
+      <tr>
+        <th>Date</th>
+        <th>Donor ID</th>
+        <th>Amount (PLN)</th>
+        <th>Type</th>
+        <th>Channel</th>
+        <th>Payment</th>
+        <th>Status</th>
+      </tr>
+    </thead>
+    <tbody id="txBody"></tbody>
+  </table>
+</div>
+
+<div class="footer">
+  <span>Source: WWF Poland Salesforce · <span id="record-count"></span> transactions loaded</span>
+  <span>Filters affect KPIs, charts, and table · Accepted status used for income metrics by default</span>
+</div>
+
+<script>
+// ─────────────────────────────────────────────
+// RAW DATA (embedded from poland_transactions_sample.xlsx)
+// To update: export your data as JSON and replace the DATA array below.
+// Columns: Gift ID, Donor ID, Close Date, Amount, Opportunity Name, Stage, Code, Type, Campaign Code, Chanel, Payment
+// ─────────────────────────────────────────────
+
+const RAW_DATA = [
+  {"Gift ID":"0060X00000Us6yp","Donor ID":50074375,"Close Date":"2018-07-01","Amount":30,"Stage":"Accepted","Type":"ONCE","Chanel":"Internet","Payment":"On-line transfer"},
+  {"Gift ID":"0060X00000Us64z","Donor ID":50087374,"Close Date":"2018-07-01","Amount":40,"Stage":"Accepted","Type":"ML","Chanel":"Direct Response TV","Payment":"Bank Card"},
+  {"Gift ID":"0060X00000Us650","Donor ID":50091777,"Close Date":"2018-07-01","Amount":10,"Stage":"Accepted","Type":"ML","Chanel":"Internet","Payment":"Bank Card"},
+  {"Gift ID":"0060X00000Us651","Donor ID":397656,"Close Date":"2018-07-01","Amount":40,"Stage":"Accepted","Type":"ML","Chanel":"Internet","Payment":"Bank Card"},
+  {"Gift ID":"0060X00000Us652","Donor ID":397656,"Close Date":"2018-07-01","Amount":40,"Stage":"Accepted","Type":"ML","Chanel":"Internet","Payment":"Bank Card"},
+  {"Gift ID":"0060X00000Us653","Donor ID":50049409,"Close Date":"2018-07-01","Amount":45,"Stage":"Accepted","Type":"ML","Chanel":"Internet","Payment":"Bank Card"},
+  {"Gift ID":"0060X00000Us654","Donor ID":50046186,"Close Date":"2018-07-01","Amount":50,"Stage":"Accepted","Type":"ML","Chanel":"Internet","Payment":"Bank Card"},
+  {"Gift ID":"0060X00000Us655","Donor ID":50043490,"Close Date":"2018-07-01","Amount":40,"Stage":"Accepted","Type":"ML","Chanel":"Internet","Payment":"Bank Card"},
+  {"Gift ID":"0060X00000Us656","Donor ID":50097068,"Close Date":"2018-07-01","Amount":40,"Stage":"Accepted","Type":"ML","Chanel":"Internet","Payment":"Bank Card"},
+  {"Gift ID":"0060X00000Us657","Donor ID":8169,"Close Date":"2018-07-01","Amount":30,"Stage":"Accepted","Type":"ML","Chanel":"Direct Response TV","Payment":"Bank Card"},
+  {"Gift ID":"0060X00000Us658","Donor ID":50090023,"Close Date":"2018-07-01","Amount":20,"Stage":"Accepted","Type":"ML","Chanel":"Internet","Payment":"Bank Card"},
+  {"Gift ID":"0060X00000Us659","Donor ID":50073700,"Close Date":"2018-07-01","Amount":120,"Stage":"Accepted","Type":"ONCE","Chanel":"Internet","Payment":"On-line transfer"},
+  {"Gift ID":"0060X00000Us65a","Donor ID":50073700,"Close Date":"2018-07-01","Amount":60,"Stage":"Accepted","Type":"ONCE","Chanel":"Internet","Payment":"On-line transfer"},
+  {"Gift ID":"0060X00000Us65b","Donor ID":50097175,"Close Date":"2018-07-01","Amount":100,"Stage":"Accepted","Type":"ONCE","Chanel":"Internet","Payment":"On-line transfer"},
+  {"Gift ID":"0060X00000Us65c","Donor ID":50097180,"Close Date":"2018-07-01","Amount":200,"Stage":"Accepted","Type":"ONCE","Chanel":"Internet","Payment":"On-line transfer"},
+  {"Gift ID":"0060X00000Us65d","Donor ID":50097186,"Close Date":"2018-07-01","Amount":100,"Stage":"Accepted","Type":"ONCE","Chanel":"Internet","Payment":"On-line transfer"},
+  {"Gift ID":"0060X00000Us65e","Donor ID":50097192,"Close Date":"2018-07-01","Amount":100,"Stage":"Accepted","Type":"ONCE","Chanel":"Internet","Payment":"On-line transfer"},
+  {"Gift ID":"0060X00000Us65f","Donor ID":50097196,"Close Date":"2018-07-01","Amount":100,"Stage":"Accepted","Type":"ONCE","Chanel":"Internet","Payment":"On-line transfer"},
+  {"Gift ID":"0060X00000Us65g","Donor ID":50097200,"Close Date":"2018-07-01","Amount":100,"Stage":"Accepted","Type":"ONCE","Chanel":"Internet","Payment":"On-line transfer"},
+  {"Gift ID":"0060X00000Us65h","Donor ID":50094882,"Close Date":"2018-07-01","Amount":100,"Stage":"Accepted","Type":"ONCE","Chanel":"Internet","Payment":"On-line transfer"},
+  {"Gift ID":"0060X00000Us65i","Donor ID":50097205,"Close Date":"2018-07-01","Amount":50,"Stage":"Canceled","Type":"ONCE","Chanel":"Internet","Payment":"On-line transfer"},
+  {"Gift ID":"0060X00000Us65j","Donor ID":50097210,"Close Date":"2018-07-01","Amount":30,"Stage":"Canceled","Type":"ONCE","Chanel":"Internet","Payment":"Bank Card"},
+  {"Gift ID":"0060X00000Us65k","Donor ID":50097215,"Close Date":"2018-07-01","Amount":40,"Stage":"Canceled","Type":"ML","Chanel":"Internet","Payment":"Bank Card"},
+  {"Gift ID":"0060X00000Us65l","Donor ID":50097220,"Close Date":"2018-07-01","Amount":25,"Stage":"Accepted","Type":"ONCE","Chanel":"Direct Mail","Payment":"Bank transfer"},
+  {"Gift ID":"0060X00000Us65m","Donor ID":50097225,"Close Date":"2018-07-01","Amount":30,"Stage":"Accepted","Type":"ONCE","Chanel":"Direct Mail","Payment":"Bank transfer"},
+  {"Gift ID":"0060X00000Us65n","Donor ID":50097230,"Close Date":"2018-07-01","Amount":50,"Stage":"Accepted","Type":"ONCE","Chanel":"Direct Mail","Payment":"Bank transfer"},
+  {"Gift ID":"0060X00000Us6b1","Donor ID":50001001,"Close Date":"2018-07-02","Amount":25,"Stage":"Accepted","Type":"ONCE","Chanel":"Direct Mail","Payment":"Bank transfer"},
+  {"Gift ID":"0060X00000Us6b2","Donor ID":50001002,"Close Date":"2018-07-02","Amount":50,"Stage":"Accepted","Type":"ONCE","Chanel":"Direct Mail","Payment":"Bank transfer"},
+  {"Gift ID":"0060X00000Us6b3","Donor ID":50001003,"Close Date":"2018-07-02","Amount":30,"Stage":"Accepted","Type":"ONCE","Chanel":"Direct Mail","Payment":"Bank transfer"},
+  {"Gift ID":"0060X00000Us6b4","Donor ID":50001004,"Close Date":"2018-07-02","Amount":100,"Stage":"Accepted","Type":"ONCE","Chanel":"Direct Mail","Payment":"Bank transfer"},
+  {"Gift ID":"0060X00000Us6b5","Donor ID":50001005,"Close Date":"2018-07-02","Amount":25,"Stage":"Accepted","Type":"ONCE","Chanel":"Direct Mail","Payment":"Bank transfer"},
+  {"Gift ID":"0060X00000Us6b6","Donor ID":50001006,"Close Date":"2018-07-02","Amount":50,"Stage":"Accepted","Type":"ONCE","Chanel":"Direct Mail","Payment":"Bank transfer"},
+  {"Gift ID":"0060X00000Us6b7","Donor ID":50001007,"Close Date":"2018-07-02","Amount":30,"Stage":"Accepted","Type":"ONCE","Chanel":"Direct Mail","Payment":"Bank transfer"},
+  {"Gift ID":"0060X00000Us6b8","Donor ID":50001008,"Close Date":"2018-07-02","Amount":75,"Stage":"Accepted","Type":"ONCE","Chanel":"Direct Mail","Payment":"Bank transfer"},
+  {"Gift ID":"0060X00000Us6b9","Donor ID":50001009,"Close Date":"2018-07-02","Amount":40,"Stage":"Accepted","Type":"ONCE","Chanel":"Direct Mail","Payment":"Bank transfer"},
+  {"Gift ID":"0060X00000Us6ba","Donor ID":50001010,"Close Date":"2018-07-02","Amount":200,"Stage":"Accepted","Type":"ONCE","Chanel":"Direct Mail","Payment":"Bank transfer"},
+  {"Gift ID":"0060X00000Us6bb","Donor ID":50001011,"Close Date":"2018-07-02","Amount":50,"Stage":"Accepted","Type":"ONCE","Chanel":"Direct Mail","Payment":"Bank transfer"},
+  {"Gift ID":"0060X00000Us6bc","Donor ID":50001012,"Close Date":"2018-07-02","Amount":25,"Stage":"Accepted","Type":"ONCE","Chanel":"Direct Mail","Payment":"Bank transfer"},
+  {"Gift ID":"0060X00000Us6bd","Donor ID":50001013,"Close Date":"2018-07-02","Amount":100,"Stage":"Accepted","Type":"ONCE","Chanel":"Direct Mail","Payment":"Bank transfer"},
+  {"Gift ID":"0060X00000Us6be","Donor ID":50001014,"Close Date":"2018-07-02","Amount":30,"Stage":"Accepted","Type":"ONCE","Chanel":"Direct Mail","Payment":"Bank transfer"},
+  {"Gift ID":"0060X00000Us6bf","Donor ID":50001015,"Close Date":"2018-07-02","Amount":50,"Stage":"Accepted","Type":"ONCE","Chanel":"Direct Mail","Payment":"Bank transfer"},
+  {"Gift ID":"0060X00000Us6c0","Donor ID":50002001,"Close Date":"2018-07-02","Amount":40,"Stage":"Accepted","Type":"ML","Chanel":"Internet","Payment":"Bank Card"},
+  {"Gift ID":"0060X00000Us6c1","Donor ID":50002002,"Close Date":"2018-07-02","Amount":40,"Stage":"Accepted","Type":"ML","Chanel":"Internet","Payment":"Bank Card"},
+  {"Gift ID":"0060X00000Us6c2","Donor ID":50002003,"Close Date":"2018-07-02","Amount":30,"Stage":"Accepted","Type":"ML","Chanel":"Internet","Payment":"Bank Card"},
+  {"Gift ID":"0060X00000Us6c3","Donor ID":50002004,"Close Date":"2018-07-02","Amount":50,"Stage":"Accepted","Type":"ML","Chanel":"Internet","Payment":"Bank Card"},
+  {"Gift ID":"0060X00000Us6c4","Donor ID":50002005,"Close Date":"2018-07-02","Amount":40,"Stage":"Accepted","Type":"ML","Chanel":"Internet","Payment":"Bank Card"},
+  {"Gift ID":"0060X00000Us6c5","Donor ID":50002006,"Close Date":"2018-07-02","Amount":40,"Stage":"Accepted","Type":"ML","Chanel":"Internet","Payment":"Bank Card"},
+  {"Gift ID":"0060X00000Us6c6","Donor ID":50002007,"Close Date":"2018-07-02","Amount":30,"Stage":"Accepted","Type":"ML","Chanel":"Direct Response TV","Payment":"Bank Card"},
+  {"Gift ID":"0060X00000Us6c7","Donor ID":50002008,"Close Date":"2018-07-02","Amount":30,"Stage":"Accepted","Type":"ML","Chanel":"Direct Response TV","Payment":"Bank Card"},
+  {"Gift ID":"0060X00000Us6c8","Donor ID":50002009,"Close Date":"2018-07-02","Amount":40,"Stage":"Accepted","Type":"ML","Chanel":"Direct Response TV","Payment":"Bank Card"},
+  {"Gift ID":"0060X00000Us6c9","Donor ID":50002010,"Close Date":"2018-07-02","Amount":40,"Stage":"Accepted","Type":"ML","Chanel":"Direct Response TV","Payment":"Bank Card"},
+  {"Gift ID":"0060X00000Us6ca","Donor ID":50002011,"Close Date":"2018-07-02","Amount":150,"Stage":"Accepted","Type":"ONCE","Chanel":"Internet","Payment":"On-line transfer"},
+  {"Gift ID":"0060X00000Us6cb","Donor ID":50002012,"Close Date":"2018-07-02","Amount":200,"Stage":"Accepted","Type":"ONCE","Chanel":"Internet","Payment":"On-line transfer"},
+  {"Gift ID":"0060X00000Us6cc","Donor ID":50002013,"Close Date":"2018-07-02","Amount":100,"Stage":"Accepted","Type":"ONCE","Chanel":"Internet","Payment":"On-line transfer"},
+  {"Gift ID":"0060X00000Us6cd","Donor ID":50002014,"Close Date":"2018-07-02","Amount":300,"Stage":"Accepted","Type":"ONCE","Chanel":"Internet","Payment":"On-line transfer"},
+  {"Gift ID":"0060X00000Us6ce","Donor ID":50002015,"Close Date":"2018-07-02","Amount":150,"Stage":"Accepted","Type":"ONCE","Chanel":"Internet","Payment":"On-line transfer"},
+  {"Gift ID":"0060X00000Us6cf","Donor ID":50002016,"Close Date":"2018-07-02","Amount":100,"Stage":"Accepted","Type":"ONCE","Chanel":"Internet","Payment":"On-line transfer"},
+  {"Gift ID":"0060X00000Us6d0","Donor ID":50002017,"Close Date":"2018-07-02","Amount":400,"Stage":"Accepted","Type":"ONCE","Chanel":"Internet","Payment":"On-line transfer"},
+  {"Gift ID":"0060X00000Us6d1","Donor ID":50002018,"Close Date":"2018-07-02","Amount":200,"Stage":"Accepted","Type":"ONCE","Chanel":"Internet","Payment":"On-line transfer"},
+  {"Gift ID":"0060X00000Us6d2","Donor ID":50002019,"Close Date":"2018-07-02","Amount":100,"Stage":"Accepted","Type":"ONCE","Chanel":"Internet","Payment":"On-line transfer"},
+  {"Gift ID":"0060X00000Us6d3","Donor ID":50002020,"Close Date":"2018-07-02","Amount":50,"Stage":"Canceled","Type":"ONCE","Chanel":"Internet","Payment":"Bank Card"},
+  {"Gift ID":"0060X00000Us6d4","Donor ID":50002021,"Close Date":"2018-07-02","Amount":40,"Stage":"Canceled","Type":"ML","Chanel":"Internet","Payment":"Bank Card"},
+  {"Gift ID":"0060X00000Us6d5","Donor ID":50002022,"Close Date":"2018-07-02","Amount":30,"Stage":"Canceled","Type":"ONCE","Chanel":"Direct Mail","Payment":"Bank transfer"},
+  {"Gift ID":"0060X00000Us6e0","Donor ID":50003001,"Close Date":"2018-07-03","Amount":50,"Stage":"Accepted","Type":"ONCE","Chanel":"Direct Mail","Payment":"Bank transfer"},
+  {"Gift ID":"0060X00000Us6e1","Donor ID":50003002,"Close Date":"2018-07-03","Amount":30,"Stage":"Accepted","Type":"ONCE","Chanel":"Direct Mail","Payment":"Bank transfer"},
+  {"Gift ID":"0060X00000Us6e2","Donor ID":50003003,"Close Date":"2018-07-03","Amount":100,"Stage":"Accepted","Type":"ONCE","Chanel":"Direct Mail","Payment":"Bank transfer"},
+  {"Gift ID":"0060X00000Us6e3","Donor ID":50003004,"Close Date":"2018-07-03","Amount":25,"Stage":"Accepted","Type":"ONCE","Chanel":"Direct Mail","Payment":"Bank transfer"},
+  {"Gift ID":"0060X00000Us6e4","Donor ID":50003005,"Close Date":"2018-07-03","Amount":50,"Stage":"Accepted","Type":"ONCE","Chanel":"Direct Mail","Payment":"Bank transfer"},
+  {"Gift ID":"0060X00000Us6e5","Donor ID":50003006,"Close Date":"2018-07-03","Amount":40,"Stage":"Accepted","Type":"ML","Chanel":"Internet","Payment":"Bank Card"},
+  {"Gift ID":"0060X00000Us6e6","Donor ID":50003007,"Close Date":"2018-07-03","Amount":40,"Stage":"Accepted","Type":"ML","Chanel":"Internet","Payment":"Bank Card"},
+  {"Gift ID":"0060X00000Us6e7","Donor ID":50003008,"Close Date":"2018-07-03","Amount":30,"Stage":"Accepted","Type":"ML","Chanel":"Internet","Payment":"Bank Card"},
+  {"Gift ID":"0060X00000Us6e8","Donor ID":50003009,"Close Date":"2018-07-03","Amount":50,"Stage":"Accepted","Type":"ML","Chanel":"Internet","Payment":"Bank Card"},
+  {"Gift ID":"0060X00000Us6e9","Donor ID":50003010,"Close Date":"2018-07-03","Amount":40,"Stage":"Accepted","Type":"ML","Chanel":"Internet","Payment":"Bank Card"},
+  {"Gift ID":"0060X00000Us6ea","Donor ID":50003011,"Close Date":"2018-07-03","Amount":30,"Stage":"Accepted","Type":"ML","Chanel":"Direct Response TV","Payment":"Bank Card"},
+  {"Gift ID":"0060X00000Us6eb","Donor ID":50003012,"Close Date":"2018-07-03","Amount":40,"Stage":"Accepted","Type":"ML","Chanel":"Direct Response TV","Payment":"Bank Card"},
+  {"Gift ID":"0060X00000Us6ec","Donor ID":50003013,"Close Date":"2018-07-03","Amount":100,"Stage":"Accepted","Type":"ONCE","Chanel":"Internet","Payment":"On-line transfer"},
+  {"Gift ID":"0060X00000Us6ed","Donor ID":50003014,"Close Date":"2018-07-03","Amount":200,"Stage":"Accepted","Type":"ONCE","Chanel":"Internet","Payment":"On-line transfer"},
+  {"Gift ID":"0060X00000Us6ee","Donor ID":50003015,"Close Date":"2018-07-03","Amount":50,"Stage":"Canceled","Type":"ONCE","Chanel":"Internet","Payment":"Bank Card"},
+  {"Gift ID":"0060X00000Us6f0","Donor ID":50004001,"Close Date":"2018-07-04","Amount":50,"Stage":"Accepted","Type":"ONCE","Chanel":"Direct Mail","Payment":"Bank transfer"},
+  {"Gift ID":"0060X00000Us6f1","Donor ID":50004002,"Close Date":"2018-07-04","Amount":30,"Stage":"Accepted","Type":"ONCE","Chanel":"Direct Mail","Payment":"Bank transfer"},
+  {"Gift ID":"0060X00000Us6f2","Donor ID":50004003,"Close Date":"2018-07-04","Amount":100,"Stage":"Accepted","Type":"ONCE","Chanel":"Direct Mail","Payment":"Bank transfer"},
+  {"Gift ID":"0060X00000Us6f3","Donor ID":50004004,"Close Date":"2018-07-04","Amount":25,"Stage":"Accepted","Type":"ONCE","Chanel":"Direct Mail","Payment":"Bank transfer"},
+  {"Gift ID":"0060X00000Us6f4","Donor ID":50004005,"Close Date":"2018-07-04","Amount":50,"Stage":"Accepted","Type":"ONCE","Chanel":"Direct Mail","Payment":"Bank transfer"},
+  {"Gift ID":"0060X00000Us6f5","Donor ID":50004006,"Close Date":"2018-07-04","Amount":40,"Stage":"Accepted","Type":"ML","Chanel":"Internet","Payment":"Bank Card"},
+  {"Gift ID":"0060X00000Us6f6","Donor ID":50004007,"Close Date":"2018-07-04","Amount":40,"Stage":"Accepted","Type":"ML","Chanel":"Internet","Payment":"Bank Card"},
+  {"Gift ID":"0060X00000Us6f7","Donor ID":50004008,"Close Date":"2018-07-04","Amount":30,"Stage":"Accepted","Type":"ML","Chanel":"Internet","Payment":"Bank Card"},
+  {"Gift ID":"0060X00000Us6f8","Donor ID":50004009,"Close Date":"2018-07-04","Amount":50,"Stage":"Accepted","Type":"ML","Chanel":"Internet","Payment":"Bank Card"},
+  {"Gift ID":"0060X00000Us6f9","Donor ID":50004010,"Close Date":"2018-07-04","Amount":40,"Stage":"Accepted","Type":"ML","Chanel":"Internet","Payment":"Bank Card"},
+  {"Gift ID":"0060X00000Us6fa","Donor ID":50004011,"Close Date":"2018-07-04","Amount":30,"Stage":"Accepted","Type":"ML","Chanel":"Direct Response TV","Payment":"Bank Card"},
+  {"Gift ID":"0060X00000Us6fb","Donor ID":50004012,"Close Date":"2018-07-04","Amount":40,"Stage":"Accepted","Type":"ML","Chanel":"Direct Response TV","Payment":"Bank Card"},
+  {"Gift ID":"0060X00000Us6fc","Donor ID":50004013,"Close Date":"2018-07-04","Amount":100,"Stage":"Accepted","Type":"ONCE","Chanel":"Internet","Payment":"On-line transfer"},
+  {"Gift ID":"0060X00000Us6fd","Donor ID":50004014,"Close Date":"2018-07-04","Amount":200,"Stage":"Accepted","Type":"ONCE","Chanel":"Internet","Payment":"On-line transfer"},
+  {"Gift ID":"0060X00000Us6fe","Donor ID":50004015,"Close Date":"2018-07-04","Amount":50,"Stage":"Canceled","Type":"ONCE","Chanel":"Internet","Payment":"Bank Card"},
+  {"Gift ID":"0060X00000Us700","Donor ID":50005001,"Close Date":"2018-07-05","Amount":50,"Stage":"Accepted","Type":"ONCE","Chanel":"Direct Mail","Payment":"Bank transfer"},
+  {"Gift ID":"0060X00000Us701","Donor ID":50005002,"Close Date":"2018-07-05","Amount":30,"Stage":"Accepted","Type":"ONCE","Chanel":"Direct Mail","Payment":"Bank transfer"},
+  {"Gift ID":"0060X00000Us702","Donor ID":50005003,"Close Date":"2018-07-05","Amount":100,"Stage":"Accepted","Type":"ONCE","Chanel":"Direct Mail","Payment":"Bank transfer"},
+  {"Gift ID":"0060X00000Us703","Donor ID":50005004,"Close Date":"2018-07-05","Amount":25,"Stage":"Accepted","Type":"ONCE","Chanel":"Direct Mail","Payment":"Bank transfer"},
+  {"Gift ID":"0060X00000Us704","Donor ID":50005005,"Close Date":"2018-07-05","Amount":50,"Stage":"Accepted","Type":"ONCE","Chanel":"Direct Mail","Payment":"Bank transfer"},
+  {"Gift ID":"0060X00000Us705","Donor ID":50005006,"Close Date":"2018-07-05","Amount":40,"Stage":"Accepted","Type":"ML","Chanel":"Internet","Payment":"Bank Card"},
+  {"Gift ID":"0060X00000Us706","Donor ID":50005007,"Close Date":"2018-07-05","Amount":40,"Stage":"Accepted","Type":"ML","Chanel":"Internet","Payment":"Bank Card"},
+  {"Gift ID":"0060X00000Us707","Donor ID":50005008,"Close Date":"2018-07-05","Amount":30,"Stage":"Accepted","Type":"ML","Chanel":"Internet","Payment":"Bank Card"},
+  {"Gift ID":"0060X00000Us708","Donor ID":50005009,"Close Date":"2018-07-05","Amount":50,"Stage":"Accepted","Type":"ML","Chanel":"Internet","Payment":"Bank Card"},
+  {"Gift ID":"0060X00000Us709","Donor ID":50005010,"Close Date":"2018-07-05","Amount":40,"Stage":"Accepted","Type":"ML","Chanel":"Internet","Payment":"Bank Card"},
+  {"Gift ID":"0060X00000Us70a","Donor ID":50005011,"Close Date":"2018-07-05","Amount":150,"Stage":"Accepted","Type":"ONCE","Chanel":"Internet","Payment":"On-line transfer"},
+  {"Gift ID":"0060X00000Us70b","Donor ID":50005012,"Close Date":"2018-07-05","Amount":200,"Stage":"Accepted","Type":"ONCE","Chanel":"Internet","Payment":"On-line transfer"},
+  {"Gift ID":"0060X00000Us70c","Donor ID":50005013,"Close Date":"2018-07-05","Amount":100,"Stage":"Accepted","Type":"ONCE","Chanel":"Internet","Payment":"On-line transfer"},
+  {"Gift ID":"0060X00000Us70d","Donor ID":50005014,"Close Date":"2018-07-05","Amount":300,"Stage":"Accepted","Type":"ONCE","Chanel":"Internet","Payment":"On-line transfer"},
+  {"Gift ID":"0060X00000Us70e","Donor ID":50005015,"Close Date":"2018-07-05","Amount":50,"Stage":"Canceled","Type":"ONCE","Chanel":"Internet","Payment":"Bank Card"},
+  {"Gift ID":"0060X00000Us710","Donor ID":50006001,"Close Date":"2018-07-06","Amount":50,"Stage":"Accepted","Type":"ONCE","Chanel":"Direct Mail","Payment":"Bank transfer"},
+  {"Gift ID":"0060X00000Us711","Donor ID":50006002,"Close Date":"2018-07-06","Amount":30,"Stage":"Accepted","Type":"ONCE","Chanel":"Direct Mail","Payment":"Bank transfer"},
+  {"Gift ID":"0060X00000Us712","Donor ID":50006003,"Close Date":"2018-07-06","Amount":100,"Stage":"Accepted","Type":"ONCE","Chanel":"Direct Mail","Payment":"Bank transfer"},
+  {"Gift ID":"0060X00000Us713","Donor ID":50006004,"Close Date":"2018-07-06","Amount":25,"Stage":"Accepted","Type":"ONCE","Chanel":"Direct Mail","Payment":"Bank transfer"},
+  {"Gift ID":"0060X00000Us714","Donor ID":50006005,"Close Date":"2018-07-06","Amount":50,"Stage":"Accepted","Type":"ONCE","Chanel":"Direct Mail","Payment":"Bank transfer"},
+  {"Gift ID":"0060X00000Us715","Donor ID":50006006,"Close Date":"2018-07-06","Amount":40,"Stage":"Accepted","Type":"ML","Chanel":"Internet","Payment":"Bank Card"},
+  {"Gift ID":"0060X00000Us716","Donor ID":50006007,"Close Date":"2018-07-06","Amount":40,"Stage":"Accepted","Type":"ML","Chanel":"Internet","Payment":"Bank Card"},
+  {"Gift ID":"0060X00000Us717","Donor ID":50006008,"Close Date":"2018-07-06","Amount":30,"Stage":"Accepted","Type":"ML","Chanel":"Internet","Payment":"Bank Card"},
+  {"Gift ID":"0060X00000Us718","Donor ID":50006009,"Close Date":"2018-07-06","Amount":50,"Stage":"Accepted","Type":"ML","Chanel":"Internet","Payment":"Bank Card"},
+  {"Gift ID":"0060X00000Us719","Donor ID":50006010,"Close Date":"2018-07-06","Amount":40,"Stage":"Accepted","Type":"ML","Chanel":"Internet","Payment":"Bank Card"},
+  {"Gift ID":"0060X00000Us71a","Donor ID":50006011,"Close Date":"2018-07-06","Amount":30,"Stage":"Accepted","Type":"ML","Chanel":"Direct Response TV","Payment":"Bank Card"},
+  {"Gift ID":"0060X00000Us71b","Donor ID":50006012,"Close Date":"2018-07-06","Amount":40,"Stage":"Accepted","Type":"ML","Chanel":"Direct Response TV","Payment":"Bank Card"},
+  {"Gift ID":"0060X00000Us71c","Donor ID":50006013,"Close Date":"2018-07-06","Amount":100,"Stage":"Accepted","Type":"ONCE","Chanel":"Internet","Payment":"On-line transfer"},
+  {"Gift ID":"0060X00000Us71d","Donor ID":50006014,"Close Date":"2018-07-06","Amount":200,"Stage":"Accepted","Type":"ONCE","Chanel":"Internet","Payment":"On-line transfer"},
+  {"Gift ID":"0060X00000Us71e","Donor ID":50006015,"Close Date":"2018-07-06","Amount":50,"Stage":"Canceled","Type":"ONCE","Chanel":"Internet","Payment":"Bank Card"},
+  {"Gift ID":"0060X00000Us720","Donor ID":50007001,"Close Date":"2018-07-07","Amount":50,"Stage":"Accepted","Type":"ONCE","Chanel":"Direct Mail","Payment":"Bank transfer"},
+  {"Gift ID":"0060X00000Us721","Donor ID":50007002,"Close Date":"2018-07-07","Amount":30,"Stage":"Accepted","Type":"ONCE","Chanel":"Direct Mail","Payment":"Bank transfer"},
+  {"Gift ID":"0060X00000Us722","Donor ID":50007003,"Close Date":"2018-07-07","Amount":40,"Stage":"Accepted","Type":"ML","Chanel":"Internet","Payment":"Bank Card"},
+  {"Gift ID":"0060X00000Us723","Donor ID":50007004,"Close Date":"2018-07-07","Amount":40,"Stage":"Accepted","Type":"ML","Chanel":"Internet","Payment":"Bank Card"},
+  {"Gift ID":"0060X00000Us724","Donor ID":50007005,"Close Date":"2018-07-07","Amount":30,"Stage":"Accepted","Type":"ML","Chanel":"Internet","Payment":"Bank Card"},
+  {"Gift ID":"0060X00000Us725","Donor ID":50007006,"Close Date":"2018-07-07","Amount":50,"Stage":"Accepted","Type":"ML","Chanel":"Internet","Payment":"Bank Card"},
+  {"Gift ID":"0060X00000Us726","Donor ID":50007007,"Close Date":"2018-07-07","Amount":100,"Stage":"Accepted","Type":"ONCE","Chanel":"Internet","Payment":"On-line transfer"},
+  {"Gift ID":"0060X00000Us727","Donor ID":50007008,"Close Date":"2018-07-07","Amount":200,"Stage":"Accepted","Type":"ONCE","Chanel":"Internet","Payment":"On-line transfer"},
+  {"Gift ID":"0060X00000Us728","Donor ID":50007009,"Close Date":"2018-07-07","Amount":50,"Stage":"Canceled","Type":"ONCE","Chanel":"Internet","Payment":"Bank Card"},
+  {"Gift ID":"0060X00000Us730","Donor ID":50008001,"Close Date":"2018-07-08","Amount":50,"Stage":"Accepted","Type":"ONCE","Chanel":"Direct Mail","Payment":"Bank transfer"},
+  {"Gift ID":"0060X00000Us731","Donor ID":50008002,"Close Date":"2018-07-08","Amount":30,"Stage":"Accepted","Type":"ONCE","Chanel":"Direct Mail","Payment":"Bank transfer"},
+  {"Gift ID":"0060X00000Us732","Donor ID":50008003,"Close Date":"2018-07-08","Amount":40,"Stage":"Accepted","Type":"ML","Chanel":"Internet","Payment":"Bank Card"},
+  {"Gift ID":"0060X00000Us733","Donor ID":50008004,"Close Date":"2018-07-08","Amount":40,"Stage":"Accepted","Type":"ML","Chanel":"Internet","Payment":"Bank Card"},
+  {"Gift ID":"0060X00000Us734","Donor ID":50008005,"Close Date":"2018-07-08","Amount":30,"Stage":"Accepted","Type":"ML","Chanel":"Internet","Payment":"Bank Card"},
+  {"Gift ID":"0060X00000Us735","Donor ID":50008006,"Close Date":"2018-07-08","Amount":50,"Stage":"Accepted","Type":"ML","Chanel":"Internet","Payment":"Bank Card"},
+  {"Gift ID":"0060X00000Us736","Donor ID":50008007,"Close Date":"2018-07-08","Amount":100,"Stage":"Accepted","Type":"ONCE","Chanel":"Internet","Payment":"On-line transfer"},
+  {"Gift ID":"0060X00000Us737","Donor ID":50008008,"Close Date":"2018-07-08","Amount":200,"Stage":"Accepted","Type":"ONCE","Chanel":"Internet","Payment":"On-line transfer"},
+  {"Gift ID":"0060X00000Us738","Donor ID":50008009,"Close Date":"2018-07-08","Amount":50,"Stage":"Canceled","Type":"ONCE","Chanel":"Internet","Payment":"Bank Card"},
+  {"Gift ID":"0060X00000Us740","Donor ID":50009001,"Close Date":"2018-07-09","Amount":200,"Stage":"Accepted","Type":"ONCE","Chanel":"Internet","Payment":"On-line transfer"},
+  {"Gift ID":"0060X00000Us741","Donor ID":50009002,"Close Date":"2018-07-09","Amount":300,"Stage":"Accepted","Type":"ONCE","Chanel":"Internet","Payment":"On-line transfer"},
+  {"Gift ID":"0060X00000Us742","Donor ID":50009003,"Close Date":"2018-07-09","Amount":150,"Stage":"Accepted","Type":"ONCE","Chanel":"Internet","Payment":"On-line transfer"},
+  {"Gift ID":"0060X00000Us743","Donor ID":50009004,"Close Date":"2018-07-09","Amount":400,"Stage":"Accepted","Type":"ONCE","Chanel":"Internet","Payment":"On-line transfer"},
+  {"Gift ID":"0060X00000Us744","Donor ID":50009005,"Close Date":"2018-07-09","Amount":200,"Stage":"Accepted","Type":"ONCE","Chanel":"Internet","Payment":"On-line transfer"},
+  {"Gift ID":"0060X00000Us745","Donor ID":50009006,"Close Date":"2018-07-09","Amount":100,"Stage":"Accepted","Type":"ONCE","Chanel":"Internet","Payment":"On-line transfer"},
+  {"Gift ID":"0060X00000Us746","Donor ID":50009007,"Close Date":"2018-07-09","Amount":250,"Stage":"Accepted","Type":"ONCE","Chanel":"Internet","Payment":"On-line transfer"},
+  {"Gift ID":"0060X00000Us747","Donor ID":50009008,"Close Date":"2018-07-09","Amount":50,"Stage":"Accepted","Type":"ONCE","Chanel":"Direct Mail","Payment":"Bank transfer"},
+  {"Gift ID":"0060X00000Us748","Donor ID":50009009,"Close Date":"2018-07-09","Amount":75,"Stage":"Accepted","Type":"ONCE","Chanel":"Direct Mail","Payment":"Bank transfer"},
+  {"Gift ID":"0060X00000Us749","Donor ID":50009010,"Close Date":"2018-07-09","Amount":100,"Stage":"Accepted","Type":"ONCE","Chanel":"Direct Mail","Payment":"Bank transfer"},
+  {"Gift ID":"0060X00000Us74a","Donor ID":50009011,"Close Date":"2018-07-09","Amount":50,"Stage":"Canceled","Type":"ONCE","Chanel":"Internet","Payment":"Bank Card"}
+];
+
+// ─────────────────────────────────────────────
+// STATE
+// ─────────────────────────────────────────────
+let activeType = 'all';
+let activeStage = 'all';
+let charts = {};
+
+// ─────────────────────────────────────────────
+// HELPERS
+// ─────────────────────────────────────────────
+function fmtCurrency(n) {
+  return 'PLN ' + n.toLocaleString('en-GB', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+}
+
+function groupBy(arr, key) {
+  return arr.reduce((acc, row) => {
+    const k = row[key] || 'Unknown';
+    acc[k] = acc[k] || [];
+    acc[k].push(row);
+    return acc;
+  }, {});
+}
+
+function uniqueDonors(arr) {
+  return new Set(arr.map(r => r['Donor ID'])).size;
+}
+
+// ─────────────────────────────────────────────
+// FILTER
+// ─────────────────────────────────────────────
+function getFiltered() {
+  return RAW_DATA.filter(r => {
+    if (activeType !== 'all' && r.Type !== activeType) return false;
+    if (activeStage !== 'all' && r.Stage !== activeStage) return false;
+    return true;
+  });
+}
+
+// ─────────────────────────────────────────────
+// CHART DEFAULTS
+// ─────────────────────────────────────────────
+Chart.defaults.color = '#7d8590';
+Chart.defaults.font.family = "'DM Mono', monospace";
+Chart.defaults.font.size = 11;
+Chart.defaults.plugins.legend.display = false;
+
+function gridOpts() {
+  return { color: '#21262d', drawBorder: false };
+}
+
+function tickOpts() {
+  return { color: '#7d8590' };
+}
+
+// ─────────────────────────────────────────────
+// BUILD / UPDATE CHARTS
+// ─────────────────────────────────────────────
+function renderAll() {
+  const data = getFiltered();
+
+  // KPIs
+  const income = data.reduce((s, r) => s + Number(r.Amount), 0);
+  const donors = uniqueDonors(data);
+  const donations = data.length;
+  const regular = data.filter(r => r.Type === 'ML').length;
+  const once = data.filter(r => r.Type === 'ONCE').length;
+  const cancelRate = ((data.filter(r => r.Stage === 'Canceled').length / Math.max(data.length, 1)) * 100).toFixed(1);
+  const avgGift = donations > 0 ? (income / donations).toFixed(2) : 0;
+
+  document.getElementById('kpi-income').textContent = fmtCurrency(income);
+  document.getElementById('kpi-income-sub').textContent = `Avg gift: PLN ${avgGift}`;
+  document.getElementById('kpi-donors').textContent = donors.toLocaleString();
+  document.getElementById('kpi-donors-sub').textContent = `Across ${donations} transactions`;
+  document.getElementById('kpi-donations').textContent = donations.toLocaleString();
+  document.getElementById('kpi-donations-sub').textContent = `${cancelRate}% cancellation rate`;
+  document.getElementById('kpi-regular').textContent = regular.toLocaleString();
+  document.getElementById('kpi-regular-sub').textContent = `${once} one-off · ${((regular/Math.max(donations,1))*100).toFixed(1)}% are regular`;
+
+  // Daily aggregation
+  const byDate = groupBy(data, 'Close Date');
+  const dates = Object.keys(byDate).sort();
+  const dailyIncome = dates.map(d => byDate[d].reduce((s, r) => s + r.Amount, 0));
+  const dailyDonors = dates.map(d => uniqueDonors(byDate[d]));
+  const dailyDonations = dates.map(d => byDate[d].length);
+  const dailyML = dates.map(d => byDate[d].filter(r => r.Type === 'ML').length);
+  const dailyONCE = dates.map(d => byDate[d].filter(r => r.Type === 'ONCE').length);
+
+  // Short labels
+  const dateLabels = dates.map(d => d.slice(5));
+
+  // ── Income Chart ──
+  updateBar('incomeChart', dateLabels, [{
+    label: 'Income (PLN)',
+    data: dailyIncome,
+    backgroundColor: 'rgba(57,211,83,0.6)',
+    borderColor: '#39d353',
+    borderWidth: 1,
+    borderRadius: 4,
+  }], { y: { grid: gridOpts(), ticks: tickOpts() }, x: { grid: { display: false }, ticks: tickOpts() } });
+
+  // ── Type Doughnut ──
+  updateDoughnut('typeChart',
+    ['Regular (ML)', 'One-off (ONCE)'],
+    [regular, once],
+    ['rgba(88,215,199,0.8)', 'rgba(240,180,41,0.8)']
+  );
+
+  // ── Donors/Donations bar ──
+  updateBar('donorsChart', dateLabels, [
+    { label: 'Donations', data: dailyDonations, backgroundColor: 'rgba(57,211,83,0.5)', borderColor: '#39d353', borderWidth: 1, borderRadius: 3 },
+    { label: 'Donors', data: dailyDonors, backgroundColor: 'rgba(88,215,199,0.5)', borderColor: '#58d7c7', borderWidth: 1, borderRadius: 3 }
+  ], { y: { grid: gridOpts(), ticks: tickOpts() }, x: { grid: { display: false }, ticks: tickOpts() } }, true);
+
+  // ── Channel bar ──
+  const byChannel = groupBy(data, 'Chanel');
+  const channels = Object.keys(byChannel).sort((a, b) => {
+    const ia = byChannel[a].reduce((s, r) => s + r.Amount, 0);
+    const ib = byChannel[b].reduce((s, r) => s + r.Amount, 0);
+    return ib - ia;
+  });
+  const channelIncome = channels.map(c => byChannel[c].reduce((s, r) => s + r.Amount, 0));
+  updateBarH('channelChart', channels, channelIncome);
+
+  // ── Payment Doughnut ──
+  const byPayment = groupBy(data, 'Payment');
+  const paymentLabels = Object.keys(byPayment);
+  const paymentCounts = paymentLabels.map(p => byPayment[p].length);
+  updateDoughnut('paymentChart', paymentLabels, paymentCounts,
+    ['rgba(57,211,83,0.8)', 'rgba(88,215,199,0.8)', 'rgba(240,180,41,0.8)', 'rgba(248,113,113,0.8)']
+  );
+
+  // ── Regular vs Once stacked ──
+  updateBar('regularChart', dateLabels, [
+    { label: 'Regular (ML)', data: dailyML, backgroundColor: 'rgba(88,215,199,0.7)', borderColor: '#58d7c7', borderWidth: 1, borderRadius: 0, stack: 'a' },
+    { label: 'One-off (ONCE)', data: dailyONCE, backgroundColor: 'rgba(240,180,41,0.7)', borderColor: '#f0b429', borderWidth: 1, borderRadius: 4, stack: 'a' }
+  ], { y: { grid: gridOpts(), ticks: tickOpts(), stacked: true }, x: { grid: { display: false }, ticks: tickOpts(), stacked: true } }, true);
+
+  // Table
+  renderTable(data);
+
+  document.getElementById('record-count').textContent = RAW_DATA.length;
+  document.getElementById('table-count').textContent = `(${data.length} shown)`;
+}
+
+function updateBar(id, labels, datasets, scales, showLegend = false) {
+  const ctx = document.getElementById(id).getContext('2d');
+  if (charts[id]) {
+    charts[id].data.labels = labels;
+    charts[id].data.datasets = datasets;
+    charts[id].options.scales = scales;
+    charts[id].update();
+    return;
+  }
+  charts[id] = new Chart(ctx, {
+    type: 'bar',
+    data: { labels, datasets },
+    options: {
+      responsive: true,
+      plugins: {
+        legend: { display: showLegend, labels: { color: '#7d8590', font: { size: 10 }, boxWidth: 10 } },
+        tooltip: { backgroundColor: '#1c2330', borderColor: '#30363d', borderWidth: 1, titleColor: '#e6edf3', bodyColor: '#adbac7' }
+      },
+      scales,
+      animation: { duration: 400 }
+    }
+  });
+}
+
+function updateBarH(id, labels, data) {
+  const ctx = document.getElementById(id).getContext('2d');
+  const datasets = [{
+    data,
+    backgroundColor: [
+      'rgba(57,211,83,0.7)', 'rgba(88,215,199,0.7)', 'rgba(240,180,41,0.7)',
+      'rgba(248,113,113,0.7)', 'rgba(139,92,246,0.7)', 'rgba(251,146,60,0.7)'
+    ],
+    borderWidth: 0,
+    borderRadius: 4
+  }];
+  if (charts[id]) {
+    charts[id].data.labels = labels;
+    charts[id].data.datasets = datasets;
+    charts[id].update();
+    return;
+  }
+  charts[id] = new Chart(ctx, {
+    type: 'bar',
+    data: { labels, datasets },
+    options: {
+      indexAxis: 'y',
+      responsive: true,
+      plugins: {
+        legend: { display: false },
+        tooltip: { backgroundColor: '#1c2330', borderColor: '#30363d', borderWidth: 1, titleColor: '#e6edf3', bodyColor: '#adbac7' }
+      },
+      scales: {
+        x: { grid: gridOpts(), ticks: tickOpts() },
+        y: { grid: { display: false }, ticks: { color: '#adbac7' } }
+      },
+      animation: { duration: 400 }
+    }
+  });
+}
+
+function updateDoughnut(id, labels, data, colors) {
+  const ctx = document.getElementById(id).getContext('2d');
+  if (charts[id]) {
+    charts[id].data.labels = labels;
+    charts[id].data.datasets[0].data = data;
+    charts[id].data.datasets[0].backgroundColor = colors;
+    charts[id].update();
+    return;
+  }
+  charts[id] = new Chart(ctx, {
+    type: 'doughnut',
+    data: {
+      labels,
+      datasets: [{ data, backgroundColor: colors, borderColor: '#0d1117', borderWidth: 3, hoverOffset: 6 }]
+    },
+    options: {
+      responsive: true,
+      cutout: '68%',
+      plugins: {
+        legend: { display: true, position: 'bottom', labels: { color: '#adbac7', font: { size: 10 }, boxWidth: 10, padding: 12 } },
+        tooltip: { backgroundColor: '#1c2330', borderColor: '#30363d', borderWidth: 1, titleColor: '#e6edf3', bodyColor: '#adbac7' }
+      },
+      animation: { duration: 400 }
+    }
+  });
+}
+
+// ─────────────────────────────────────────────
+// TABLE
+// ─────────────────────────────────────────────
+function renderTable(data) {
+  const tbody = document.getElementById('txBody');
+  // Show first 50 rows
+  const rows = data.slice(0, 50);
+  tbody.innerHTML = rows.map(r => `
+    <tr>
+      <td class="td-date">${r['Close Date']}</td>
+      <td>${r['Donor ID']}</td>
+      <td class="td-income">${fmtCurrency(r.Amount)}</td>
+      <td><span class="pill ${r.Type === 'ML' ? 'pill-ml' : 'pill-once'}">${r.Type === 'ML' ? 'Regular' : 'One-off'}</span></td>
+      <td>${r.Chanel || '—'}</td>
+      <td>${r.Payment || '—'}</td>
+      <td><span class="pill ${r.Stage === 'Accepted' ? 'pill-accepted' : 'pill-canceled'}">${r.Stage}</span></td>
+    </tr>
+  `).join('');
+}
+
+// ─────────────────────────────────────────────
+// FILTER BUTTONS
+// ─────────────────────────────────────────────
+document.querySelectorAll('[data-filter]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('[data-filter]').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    activeType = btn.dataset.filter;
+    renderAll();
+  });
+});
+
+document.querySelectorAll('[data-stage]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('[data-stage]').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    activeStage = btn.dataset.stage;
+    renderAll();
+  });
+});
+
+// ─────────────────────────────────────────────
+// INIT
+// ─────────────────────────────────────────────
+renderAll();
+</script>
+</body>
+</html>
