@@ -113,11 +113,12 @@
   /* ── KPI CARDS ── */
   .kpi-grid {
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(5, 1fr);
     gap: 1rem;
     margin-bottom: 2rem;
   }
 
+  @media (max-width: 1200px) { .kpi-grid { grid-template-columns: repeat(3, 1fr); } }
   @media (max-width: 900px) { .kpi-grid { grid-template-columns: repeat(2, 1fr); } }
   @media (max-width: 500px) { .kpi-grid { grid-template-columns: 1fr; } }
 
@@ -142,6 +143,7 @@
   .kpi-card.teal::before   { background: var(--teal); }
   .kpi-card.amber::before  { background: var(--amber); }
   .kpi-card.rose::before   { background: var(--rose); }
+  .kpi-card.purple::before { background: #a371f7; }
 
   .kpi-card:hover { border-color: var(--text-dim); }
 
@@ -165,6 +167,7 @@
   .kpi-card.teal   .kpi-value { color: var(--teal); }
   .kpi-card.amber  .kpi-value { color: var(--amber); }
   .kpi-card.rose   .kpi-value { color: var(--rose); }
+  .kpi-card.purple .kpi-value { color: #a371f7; }
 
   .kpi-sub {
     font-size: 11px;
@@ -264,6 +267,8 @@
   .pill-once { background: rgba(240,180,41,0.15); color: var(--amber); }
   .pill-accepted { background: rgba(57,211,83,0.15); color: var(--green); }
   .pill-canceled { background: rgba(248,113,113,0.15); color: var(--rose); }
+  .pill-repeat { background: rgba(163,113,247,0.15); color: #a371f7; }
+  .pill-first { background: rgba(88,215,199,0.15); color: var(--teal); }
 
   /* ── FOOTER ── */
   .footer {
@@ -289,8 +294,9 @@
   .kpi-card:nth-child(2) { animation-delay: 0.1s; }
   .kpi-card:nth-child(3) { animation-delay: 0.15s; }
   .kpi-card:nth-child(4) { animation-delay: 0.2s; }
+  .kpi-card:nth-child(5) { animation-delay: 0.25s; }
 
-  .chart-card { animation: fadeUp 0.5s ease both; animation-delay: 0.25s; }
+  .chart-card { animation: fadeUp 0.5s ease both; animation-delay: 0.3s; }
 </style>
 </head>
 <body>
@@ -339,6 +345,11 @@
     <div class="kpi-value" id="kpi-regular">0</div>
     <div class="kpi-sub" id="kpi-regular-sub">Loading…</div>
   </div>
+  <div class="kpi-card purple">
+    <div class="kpi-label">Retention Rate</div>
+    <div class="kpi-value" id="kpi-retention">0%</div>
+    <div class="kpi-sub" id="kpi-retention-sub">Loading…</div>
+  </div>
 </div>
 
 <!-- CHARTS ROW 1: Income over time + Type split -->
@@ -377,6 +388,18 @@
   </div>
 </div>
 
+<!-- CHARTS ROW 4: Retention insights -->
+<div class="charts-row">
+  <div class="chart-card">
+    <div class="chart-title">First-time vs Repeat Donors</div>
+    <div class="chart-wrap"><canvas id="retentionSplitChart" height="160"></canvas></div>
+  </div>
+  <div class="chart-card">
+    <div class="chart-title">Repeat Donor Revenue Contribution</div>
+    <div class="chart-wrap"><canvas id="retentionRevenueChart" height="160"></canvas></div>
+  </div>
+</div>
+
 <!-- TRANSACTIONS TABLE -->
 <div class="table-card">
   <div class="chart-title">Transactions <span id="table-count"></span></div>
@@ -396,16 +419,31 @@
   </table>
 </div>
 
+<!-- DONOR COHORT TABLE -->
+<div class="table-card">
+  <div class="chart-title">Top Donors by Lifetime Giving <span id="cohort-count"></span></div>
+  <table id="cohortTable">
+    <thead>
+      <tr>
+        <th>Donor ID</th>
+        <th>Donations</th>
+        <th>Total (PLN)</th>
+        <th>Avg Amount</th>
+        <th>Status</th>
+      </tr>
+    </thead>
+    <tbody id="cohortBody"></tbody>
+  </table>
+</div>
+
 <div class="footer">
   <span>Source: WWF Poland Salesforce · <span id="record-count"></span> transactions loaded</span>
-  <span>Filters affect KPIs, charts, and table · Accepted status used for income metrics by default</span>
+  <span>Retention = % of donors who gave 2+ times · Filters affect all metrics</span>
 </div>
 
 <script>
 // ─────────────────────────────────────────────
-// RAW DATA (embedded from poland_transactions_sample.xlsx)
-// To update: export your data as JSON and replace the DATA array below.
-// Columns: Gift ID, Donor ID, Close Date, Amount, Opportunity Name, Stage, Code, Type, Campaign Code, Chanel, Payment
+// RAW DATA
 // ─────────────────────────────────────────────
 
 const RAW_DATA = [
@@ -591,6 +629,37 @@ function uniqueDonors(arr) {
 }
 
 // ─────────────────────────────────────────────
+// RETENTION HELPERS
+// ─────────────────────────────────────────────
+function calculateRetention(arr) {
+  const donorDonationCounts = {};
+  arr.forEach(r => {
+    const donorId = r['Donor ID'];
+    donorDonationCounts[donorId] = (donorDonationCounts[donorId] || 0) + 1;
+  });
+  
+  const repeatDonors = Object.values(donorDonationCounts).filter(count => count > 1).length;
+  const totalDonors = Object.keys(donorDonationCounts).length;
+  const retentionRate = totalDonors > 0 ? ((repeatDonors / totalDonors) * 100) : 0;
+  
+  return { repeatDonors, totalDonors, retentionRate };
+}
+
+function getDonorStats(arr) {
+  const donorStats = {};
+  arr.forEach(r => {
+    const donorId = r['Donor ID'];
+    if (!donorStats[donorId]) {
+      donorStats[donorId] = { count: 0, total: 0, donations: [] };
+    }
+    donorStats[donorId].count += 1;
+    donorStats[donorId].total += Number(r.Amount);
+    donorStats[donorId].donations.push(r);
+  });
+  return donorStats;
+}
+
+// ─────────────────────────────────────────────
 // FILTER
 // ─────────────────────────────────────────────
 function getFiltered() {
@@ -631,6 +700,9 @@ function renderAll() {
   const once = data.filter(r => r.Type === 'ONCE').length;
   const cancelRate = ((data.filter(r => r.Stage === 'Canceled').length / Math.max(data.length, 1)) * 100).toFixed(1);
   const avgGift = donations > 0 ? (income / donations).toFixed(2) : 0;
+  
+  // Retention metrics
+  const { repeatDonors, totalDonors, retentionRate } = calculateRetention(data);
 
   document.getElementById('kpi-income').textContent = fmtCurrency(income);
   document.getElementById('kpi-income-sub').textContent = `Avg gift: PLN ${avgGift}`;
@@ -640,6 +712,8 @@ function renderAll() {
   document.getElementById('kpi-donations-sub').textContent = `${cancelRate}% cancellation rate`;
   document.getElementById('kpi-regular').textContent = regular.toLocaleString();
   document.getElementById('kpi-regular-sub').textContent = `${once} one-off · ${((regular/Math.max(donations,1))*100).toFixed(1)}% are regular`;
+  document.getElementById('kpi-retention').textContent = retentionRate.toFixed(1) + '%';
+  document.getElementById('kpi-retention-sub').textContent = `${repeatDonors} of ${totalDonors} donors`;
 
   // Daily aggregation
   const byDate = groupBy(data, 'Close Date');
@@ -650,7 +724,6 @@ function renderAll() {
   const dailyML = dates.map(d => byDate[d].filter(r => r.Type === 'ML').length);
   const dailyONCE = dates.map(d => byDate[d].filter(r => r.Type === 'ONCE').length);
 
-  // Short labels
   const dateLabels = dates.map(d => d.slice(5));
 
   // ── Income Chart ──
@@ -700,8 +773,34 @@ function renderAll() {
     { label: 'One-off (ONCE)', data: dailyONCE, backgroundColor: 'rgba(240,180,41,0.7)', borderColor: '#f0b429', borderWidth: 1, borderRadius: 4, stack: 'a' }
   ], { y: { grid: gridOpts(), ticks: tickOpts(), stacked: true }, x: { grid: { display: false }, ticks: tickOpts(), stacked: true } }, true);
 
-  // Table
+  // ── Retention: First-time vs Repeat ──
+  const firstTimeDonors = totalDonors - repeatDonors;
+  updateDoughnut('retentionSplitChart',
+    ['First-time', 'Repeat Donors'],
+    [firstTimeDonors, repeatDonors],
+    ['rgba(88,215,199,0.8)', 'rgba(163,113,247,0.8)']
+  );
+
+  // ── Retention: Revenue Contribution ──
+  const donorStats = getDonorStats(data);
+  let repeatDonorRevenue = 0;
+  let firstTimeRevenue = 0;
+  Object.values(donorStats).forEach(stats => {
+    if (stats.count > 1) {
+      repeatDonorRevenue += stats.total;
+    } else {
+      firstTimeRevenue += stats.total;
+    }
+  });
+  updateDoughnut('retentionRevenueChart',
+    ['First-time Revenue', 'Repeat Revenue'],
+    [firstTimeRevenue, repeatDonorRevenue],
+    ['rgba(88,215,199,0.8)', 'rgba(163,113,247,0.8)']
+  );
+
+  // Tables
   renderTable(data);
+  renderCohort(donorStats);
 
   document.getElementById('record-count').textContent = RAW_DATA.length;
   document.getElementById('table-count').textContent = `(${data.length} shown)`;
@@ -795,11 +894,10 @@ function updateDoughnut(id, labels, data, colors) {
 }
 
 // ─────────────────────────────────────────────
-// TABLE
+// TABLES
 // ─────────────────────────────────────────────
 function renderTable(data) {
   const tbody = document.getElementById('txBody');
-  // Show first 50 rows
   const rows = data.slice(0, 50);
   tbody.innerHTML = rows.map(r => `
     <tr>
@@ -812,6 +910,32 @@ function renderTable(data) {
       <td><span class="pill ${r.Stage === 'Accepted' ? 'pill-accepted' : 'pill-canceled'}">${r.Stage}</span></td>
     </tr>
   `).join('');
+}
+
+function renderCohort(donorStats) {
+  const tbody = document.getElementById('cohortBody');
+  const sorted = Object.entries(donorStats)
+    .map(([donorId, stats]) => ({
+      donorId,
+      count: stats.count,
+      total: stats.total,
+      avg: (stats.total / stats.count).toFixed(2),
+      isRepeat: stats.count > 1
+    }))
+    .sort((a, b) => b.total - a.total)
+    .slice(0, 20);
+  
+  tbody.innerHTML = sorted.map(d => `
+    <tr>
+      <td>${d.donorId}</td>
+      <td>${d.count}</td>
+      <td class="td-income">${fmtCurrency(d.total)}</td>
+      <td>${fmtCurrency(d.avg)}</td>
+      <td><span class="pill ${d.isRepeat ? 'pill-repeat' : 'pill-first'}">${d.isRepeat ? 'Repeat' : 'First-time'}</span></td>
+    </tr>
+  `).join('');
+  
+  document.getElementById('cohort-count').textContent = `(top ${sorted.length})`;
 }
 
 // ─────────────────────────────────────────────
